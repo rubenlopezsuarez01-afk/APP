@@ -1,0 +1,14 @@
+{
+  "name": "Planning de comidas",
+  "short_name": "Comidas",
+  "description": "Planning semanal de comidas con lista de la compra por supermercado.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f4ef",
+  "theme_color": "#2f7d4f",
+  "lang": "es",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
