@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#2f7d4f"/><text x="256" y="330" font-size="260" text-anchor="middle" font-family="sans-serif">🥗</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#2f7d4f"/>
+  <circle cx="256" cy="276" r="150" fill="#f3f4ef"/>
+  <circle cx="256" cy="276" r="108" fill="none" stroke="#dfe2d8" stroke-width="10"/>
+  <path d="M256 196c-46 18-70 56-62 104 48 4 82-22 94-64 4-14 2-28-32-40z" fill="#2f7d4f"/>
+  <path d="M214 306c18-30 40-52 70-72" stroke="#f3f4ef" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <rect x="300" y="250" width="58" height="42" rx="21" fill="#e8b93a"/>
+  <rect x="76" y="80" width="14" height="110" rx="7" fill="#f3e3b5"/>
+  <rect x="96" y="80" width="14" height="110" rx="7" fill="#f3e3b5"/>
+  <rect x="116" y="80" width="14" height="110" rx="7" fill="#f3e3b5"/>
+</svg>

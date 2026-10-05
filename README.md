@@ -26,7 +26,13 @@ npm start            # o: python3 -m http.server 8080
 
 y abre <http://localhost:8080>. También funciona abriendo `index.html` directamente (sin modo offline).
 
-Para tenerla en el móvil, publícala con **GitHub Pages** (Settings → Pages → rama `main`, carpeta `/`), ábrela en el móvil y elige *"Añadir a pantalla de inicio"*.
+### Instalarla en el móvil
+
+1. Publícala con **GitHub Pages**: *Settings → Pages → Build and deployment → Source: Deploy from a branch*, elige la rama de la app y la carpeta `/ (root)`, y pulsa *Save*. En uno o dos minutos estará en `https://<usuario>.github.io/APP/`.
+2. Abre esa dirección en el móvil:
+   - **Android (Chrome):** menú ⋮ → *Instalar aplicación* (o *Añadir a pantalla de inicio*).
+   - **iPhone (Safari):** botón Compartir → *Añadir a pantalla de inicio*.
+3. Se abre a pantalla completa desde su icono y funciona sin conexión.
 
 ## Actualizar sin perder datos
 
