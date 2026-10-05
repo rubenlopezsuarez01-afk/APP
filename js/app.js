@@ -106,6 +106,35 @@
   }
   function closeModal() {
     if (dialog.open) dialog.close();
+    if (pendingRemote) { const next = pendingRemote; pendingRemote = null; applyRemote(next); }
+  }
+  dialog.addEventListener('close', () => {
+    if (pendingRemote) { const next = pendingRemote; pendingRemote = null; applyRemote(next); }
+  });
+
+  // Confirmación dentro de la página (los artefactos no permiten confirm()).
+  const confirmDialog = document.getElementById('confirm');
+  function ask(message, okLabel, danger) {
+    return new Promise((resolve) => {
+      const done = (v) => { confirmDialog.close(); resolve(v); };
+      confirmDialog.replaceChildren(
+        h('p', { class: 'confirm-msg' }, message),
+        h('div', { class: 'confirm-actions' },
+          h('button', { class: 'btn', onclick: () => done(false) }, 'Cancelar'),
+          h('button', { class: 'btn ' + (danger ? 'danger-solid' : 'primary'), onclick: () => done(true) }, okLabel || 'Aceptar')));
+      confirmDialog.oncancel = (e) => { e.preventDefault(); done(false); };
+      confirmDialog.showModal();
+      confirmDialog.querySelector('.confirm-actions .btn:last-child').focus();
+    });
+  }
+
+  // ---------- sincronización ----------
+  let pendingRemote = null;
+  let syncMode = 'local';
+  function applyRemote(next) {
+    if (dialog.open) { pendingRemote = next; return; }
+    state = next;
+    render();
   }
   dialog.addEventListener('click', (e) => { if (e.target === dialog) closeModal(); });
 
@@ -183,9 +212,9 @@
     const nameInput = h('input', {
       type: 'text', value: draft.name, placeholder: '¿Qué vas a comer?', list: 'recipe-names', class: 'big-input',
       oninput: (e) => { draft.name = e.target.value; },
-      onchange: () => {
+      onchange: async () => {
         const rec = knownRecipe() || CATALOG.find((r) => L.normalize(r.name) === L.normalize(draft.name));
-        if (rec && (!draft.ingredients.length || confirm(`¿Cargar los ingredientes de "${rec.name}"?`))) {
+        if (rec && (!draft.ingredients.length || await ask(`¿Cambiar los ingredientes por los de "${rec.name}"?`, 'Cambiar'))) {
           const m = mealFromRecipe(rec);
           draft.ingredients = m.ingredients;
           draft.recipeId = m.recipeId;
@@ -264,15 +293,15 @@
 
     const footer = [
       existing ? h('button', {
-        class: 'btn danger', onclick: () => {
-          if (!confirm('¿Quitar esta comida del planning?')) return;
+        class: 'btn danger', onclick: async () => {
+          if (!await ask('¿Quitar esta comida del planning?', 'Quitar', true)) return;
           delete week.slots[key];
           persist(); closeModal(); render();
         }
       }, 'Quitar') : null,
       h('button', { class: 'btn accent', onclick: () => openSuggestions(key) }, '💡 Ideas'),
       h('span', { class: 'spacer' }),
-      h('button', { class: 'btn', onclick: closeModal }, 'Cancelar'),
+      h('button', { class: 'btn btn-cancel', onclick: closeModal }, 'Cancelar'),
       h('button', {
         class: 'btn primary', onclick: () => {
           draft.name = draft.name.trim();
@@ -436,13 +465,16 @@
     const week = getWeek(weekKey);
     const text = `Lista de la compra (${formatWeek(weekKey)})\n\n` +
       L.shoppingListText(L.buildShoppingList(week, week.extras, week.checked, state.settings.meals));
+    const inFrame = window.top !== window;
     try {
-      if (navigator.share) { await navigator.share({ title: 'Lista de la compra', text }); return; }
+      if (navigator.share && !inFrame) { await navigator.share({ title: 'Lista de la compra', text }); return; }
       await navigator.clipboard.writeText(text);
-      toast('Lista copiada al portapapeles');
+      toast('Lista copiada: pégala en WhatsApp o en Notas');
     } catch (e) {
       if (e && e.name === 'AbortError') return;
-      prompt('Copia la lista:', text);
+      const area = h('textarea', { rows: 14, readonly: true }, text);
+      openModal('Copia la lista', h('div', {}, h('p', { class: 'muted small' }, 'Selecciona el texto y cópialo.'), area));
+      area.select();
     }
   }
 
@@ -507,14 +539,14 @@
 
     openModal(recipe ? 'Editar receta' : 'Nueva receta', body, [
       recipe ? h('button', {
-        class: 'btn danger', onclick: () => {
-          if (!confirm(`¿Borrar "${recipe.name}"?`)) return;
+        class: 'btn danger', onclick: async () => {
+          if (!await ask(`¿Borrar la receta "${recipe.name}"? El historial de comidas no se toca.`, 'Borrar', true)) return;
           state.recipes = state.recipes.filter((r) => r.id !== recipe.id);
           persist(); closeModal(); render();
         }
       }, 'Borrar') : null,
       h('span', { class: 'spacer' }),
-      h('button', { class: 'btn', onclick: closeModal }, 'Cancelar'),
+      h('button', { class: 'btn btn-cancel', onclick: closeModal }, 'Cancelar'),
       h('button', {
         class: 'btn primary', onclick: () => {
           draft.name = draft.name.trim();
@@ -545,11 +577,12 @@
         if (!file) return;
         try {
           const data = JSON.parse(await file.text());
-          if (!confirm('Esto sustituirá todos tus datos actuales. ¿Continuar?')) return;
+          e.target.value = '';
+          if (!await ask('Esto sustituirá todos tus datos actuales por los del archivo.', 'Importar', true)) return;
           state = Store.migrate(data);
           persist(); render(); toast('Datos importados');
         } catch (err) {
-          alert('El archivo no es válido.');
+          toast('Ese archivo no es una copia de seguridad válida.');
         }
       }
     });
@@ -561,24 +594,39 @@
       field('No cuentan para repetir', 'Al proponer ideas se evitan platos con alimentos que ya comes esta semana. Estos básicos no cuentan.', s.staples, (v) => { s.staples = v; }, 6),
       h('section', { class: 'card setting' },
         h('h3', {}, 'Copia de seguridad'),
-        h('p', { class: 'muted small' }, 'Los datos se guardan en este dispositivo. Exporta un archivo para pasarlos a otro móvil u ordenador.'),
+        h('p', { class: 'muted small' }, syncMode === 'remote'
+          ? 'Tus datos se guardan en tu cuenta de Claude y se ven igual en el móvil y en el ordenador. Puedes exportar una copia por si acaso.'
+          : 'Los datos se guardan en este navegador. Exporta un archivo para pasarlos a otro móvil u ordenador.'),
         h('div', { class: 'row' },
           h('button', {
-            class: 'btn', onclick: () => {
-              const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-              const a = h('a', { href: URL.createObjectURL(blob), download: `planificador-comidas-${L.toISO(new Date())}.json` });
-              document.body.append(a); a.click(); a.remove();
-            }
+            class: 'btn', onclick: () => exportData()
           }, '⬇ Exportar'),
           h('button', { class: 'btn', onclick: () => fileIn.click() }, '⬆ Importar'),
           fileIn,
           h('span', { class: 'spacer' }),
           h('button', {
-            class: 'btn danger', onclick: () => {
-              if (!confirm('¿Borrar TODOS los datos (planning, historial, recetas)?')) return;
+            class: 'btn danger', onclick: async () => {
+              if (!await ask('¿Borrar TODOS los datos (planning, historial y recetas)? No se puede deshacer.', 'Borrar todo', true)) return;
               state = Store.defaults(); persist(); render();
             }
           }, 'Borrar todo'))));
+  }
+
+  async function exportData() {
+    const json = JSON.stringify(state, null, 2);
+    const filename = `planificador-comidas-${L.toISO(new Date())}.json`;
+    if (window.top !== window) {
+      const downloads = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
+      if (downloads) {
+        try { await downloads.save({ filename, data: json }); } catch (e) { if (e && e.code !== 'declined') toast('No se pudo guardar el archivo.'); }
+        return;
+      }
+      const area = h('textarea', { rows: 14, readonly: true }, json);
+      openModal('Copia de seguridad', h('div', {}, h('p', { class: 'muted small' }, 'Copia este texto y guárdalo en un archivo .json.'), area));
+      return;
+    }
+    const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: filename });
+    document.body.append(a); a.click(); a.remove();
   }
 
   // ---------- arranque ----------
@@ -589,7 +637,12 @@
 
   render();
 
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  Store.connect(
+    (next) => { syncMode = 'remote'; applyRemote(next); },
+    (e) => toast(e && e.code === 'quota_exceeded' ? 'No queda espacio para guardar más datos.' : 'No se pudo guardar el último cambio. Revisa la conexión.')
+  ).then((ok) => { if (ok) { syncMode = 'remote'; if (view === 'settings') render(); } });
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();

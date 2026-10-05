@@ -3,7 +3,7 @@
   'use strict';
 
   const R = (name, ingredients, tags) => ({
-    id: 'cat-' + name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-'),
+    id: 'cat-' + name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-'),
     name,
     builtin: true,
     tags: tags || [],

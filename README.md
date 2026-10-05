@@ -28,6 +28,12 @@ y abre <http://localhost:8080>. También funciona abriendo `index.html` directam
 
 Para tenerla en el móvil, publícala con **GitHub Pages** (Settings → Pages → rama `main`, carpeta `/`), ábrela en el móvil y elige *"Añadir a pantalla de inicio"*.
 
+## Como artefacto de Claude
+
+`npm run build` genera `artifact/planning-comidas.html`, la app en un solo archivo lista para publicarse como artefacto de Claude. Ahí los datos se guardan en la base de datos del artefacto (capacidad `db`), así que se ven igual en el móvil y en el ordenador. Fuera de Claude la app sigue usando el almacenamiento del navegador.
+
+Artefacto publicado: <https://claude.ai/artifact/Di5SGVsvtf1mGoe9LwgpAX>
+
 ## Tests
 
 ```bash
@@ -41,6 +47,7 @@ npm test
 | `index.html`, `styles.css` | Interfaz |
 | `js/logic.js` | Lógica pura: lista de la compra, historial y sugerencias |
 | `js/catalog.js` | Recetario incluido |
-| `js/store.js` | Guardado en `localStorage` |
+| `js/store.js` | Guardado en `localStorage` o en la base de datos del artefacto |
 | `js/app.js` | Pantallas y eventos |
 | `sw.js`, `manifest.json` | Modo offline e instalación (PWA) |
+| `scripts/build-artifact.js` | Genera el HTML único del artefacto |

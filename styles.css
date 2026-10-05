@@ -1,48 +1,70 @@
 :root {
-  --bg: #f5f4ef;
+  /* Planning de comidas: verde huerta, mostaza para las ideas, neutros con un punto verde. */
+  --bg: #f3f4ef;
   --surface: #ffffff;
-  --text: #1f2421;
-  --muted: #6b716d;
-  --border: #e2e0d8;
+  --text: #1c241f;
+  --muted: #66706a;
+  --border: #dfe2d8;
   --primary: #2f7d4f;
   --primary-text: #ffffff;
   --accent: #f3e3b5;
   --accent-text: #6a4b00;
   --danger: #b3261e;
-  --have: #eef6f0;
-  --chip: #ece9df;
+  --danger-text: #ffffff;
+  --have: #eaf4ed;
+  --chip: #e9ebe2;
   --radius: 12px;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #151816;
-    --surface: #1f2421;
-    --text: #e8ebe8;
-    --muted: #9aa29d;
-    --border: #333a36;
-    --primary: #5bb37f;
-    --primary-text: #0c1a12;
-    --accent: #4a3d17;
-    --accent-text: #f3dc9a;
+  :root:not([data-theme="light"]) {
+    --bg: #141815;
+    --surface: #1d231f;
+    --text: #e6ebe7;
+    --muted: #9ba59f;
+    --border: #323b35;
+    --primary: #62bb87;
+    --primary-text: #0b1a11;
+    --accent: #463a17;
+    --accent-text: #f1d98f;
     --danger: #ef8a83;
-    --have: #1c2b22;
-    --chip: #2b312d;
+    --danger-text: #2a0b08;
+    --have: #1b2b21;
+    --chip: #2a312c;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #141815;
+  --surface: #1d231f;
+  --text: #e6ebe7;
+  --muted: #9ba59f;
+  --border: #323b35;
+  --primary: #62bb87;
+  --primary-text: #0b1a11;
+  --accent: #463a17;
+  --accent-text: #f1d98f;
+  --danger: #ef8a83;
+  --danger-text: #2a0b08;
+  --have: #1b2b21;
+  --chip: #2a312c;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--body);
   background: var(--bg);
   color: var(--text);
   font-size: 16px;
   line-height: 1.4;
   padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
-h1, h2, h3 { margin: 0; }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 700; text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 h3 { font-size: 1rem; margin: 16px 0 8px; }
 input, select, textarea, button { font: inherit; color: inherit; }
 input[type=text], input[type=search], select, textarea {
@@ -56,13 +78,13 @@ textarea { width: 100%; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 
 .topbar {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  padding: 10px 16px;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
 }
-.topbar h1 { font-size: 1.15rem; }
+.topbar h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -.01em; }
 .week-nav { display: flex; align-items: center; gap: 4px; }
 .week-nav[hidden] { display: none; }
 #week-label { font-weight: 600; min-width: 120px; text-align: center; }
@@ -84,7 +106,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .tab.active { color: var(--primary); font-weight: 600; }
 .badge {
   position: absolute; top: 4px; left: calc(50% + 8px);
-  background: var(--danger); color: #fff; border-radius: 999px;
+  background: var(--danger); color: var(--danger-text); border-radius: 999px;
   font-size: .7rem; padding: 0 6px; min-width: 18px; text-align: center;
 }
 .badge[hidden] { display: none; }
@@ -99,6 +121,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .btn.accent { background: var(--accent); color: var(--accent-text); border-color: transparent; }
 .btn.ghost { background: transparent; }
 .btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn.danger-solid { background: var(--danger); color: var(--danger-text); border-color: var(--danger); }
 .icon-btn {
   background: none; border: 0; cursor: pointer; padding: 6px 8px;
   border-radius: 8px; font-size: 1.1rem; line-height: 1;
@@ -123,7 +146,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 }
 .day.today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 .day-head { display: flex; justify-content: space-between; align-items: baseline; }
-.day-name { font-weight: 700; }
+.day-name { font-family: var(--display); font-weight: 700; font-size: 1.05rem; }
 .day-date { color: var(--muted); font-size: .85rem; }
 .slot { border-radius: 10px; padding: 8px 10px; }
 .slot.empty {
@@ -179,6 +202,7 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
 .check-line { display: flex; align-items: center; gap: 6px; }
 
 @media (max-width: 560px) {
+  .modal-foot .btn-cancel { display: none; }
   .ing-row { grid-template-columns: auto 1fr 70px auto; }
   .ing-row .shop-select { grid-column: 2 / 4; }
   .ing-row > .icon-btn { grid-row: 1; grid-column: 4; }
@@ -233,10 +257,19 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
 .setting p { margin: 0 0 8px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+dialog.confirm { width: min(380px, calc(100vw - 32px)); padding: 20px; display: none; }
+dialog.confirm[open] { display: block; }
+.confirm-msg { margin: 0 0 16px; font-size: 1rem; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
 #toast {
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom));
-  transform: translate(-50%, 20px); opacity: 0; transition: .2s;
+  transform: translate(-50%, 20px); opacity: 0; transition: .2s; max-width: calc(100% - 32px); text-align: center;
   background: var(--text); color: var(--bg); padding: 8px 16px; border-radius: 999px;
   pointer-events: none; z-index: 20; font-size: .9rem;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  #toast { transition: none; }
+}
