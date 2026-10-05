@@ -11,12 +11,16 @@
 (function (root) {
   'use strict';
 
+  // No cambies esta clave: es donde viven los datos en el móvil. Si cambia,
+  // la app arrancaría vacía tras una actualización.
   const KEY = 'planificador-comidas-v1';
+  const META_KEY = 'planificador-comidas-meta';
+  const DATA_VERSION = 1;
   const { STAPLES } = root.Logic;
 
   function defaults() {
     return {
-      version: 1,
+      version: DATA_VERSION,
       settings: {
         meals: ['Comida', 'Cena'],
         supermarkets: ['Mercadona', 'Lidl', 'Carrefour', 'Dia', 'Alcampo', 'Frutería'],
@@ -38,15 +42,28 @@
       settings: { ...base.settings, ...(data.settings || {}) },
       recipes: Array.isArray(data.recipes) ? data.recipes : [],
       weeks: data.weeks || {},
-      ingredientShop: data.ingredientShop || {}
+      ingredientShop: data.ingredientShop || {},
+      version: DATA_VERSION
     };
+  }
+
+  // Aquí irán las conversiones si algún día cambia la forma de los datos:
+  // if (data.version < 2) { ...convertir... }
+  function upgrade(data) {
+    return migrate(data);
   }
 
   // ---------- localStorage ----------
   function loadLocal() {
     try {
       const raw = localStorage.getItem(KEY);
-      return raw ? migrate(JSON.parse(raw)) : defaults();
+      if (!raw) return defaults();
+      const data = JSON.parse(raw);
+      if ((data.version || 1) < DATA_VERSION) {
+        // Copia intacta antes de convertir los datos a la nueva versión.
+        localStorage.setItem(`${KEY}-antes-de-v${DATA_VERSION}`, raw);
+      }
+      return upgrade(data);
     } catch (e) {
       return defaults();
     }
@@ -192,6 +209,25 @@
     return loadLocal();
   }
 
+  // Datos pequeños de la propia app (última copia, avisos aplazados).
+  function getMeta() {
+    try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function setMeta(patch) {
+    try { localStorage.setItem(META_KEY, JSON.stringify({ ...getMeta(), ...patch })); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  /** Pide al navegador que no borre los datos aunque falte espacio o no se use la app. */
+  async function persist() {
+    try {
+      if (!navigator.storage || !navigator.storage.persist) return null;
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    } catch (e) {
+      return null;
+    }
+  }
+
   function save(state) {
     if (remote.db) saveRemote(state);
     else if (!saveLocal(state) && remote.onError) remote.onError({ code: 'local' });
@@ -201,5 +237,5 @@
     return !!remote.db;
   }
 
-  root.Store = { load, save, defaults, migrate, connect, isRemote, toDocs, fromDocs, stable };
+  root.Store = { load, save, defaults, migrate: upgrade, connect, isRemote, toDocs, fromDocs, stable, getMeta, setMeta, persist, DATA_VERSION };
 })(typeof self !== 'undefined' ? self : this);

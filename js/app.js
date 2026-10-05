@@ -164,6 +164,8 @@
     const week = getWeek(weekKey);
     const today = L.toISO(new Date());
     const wrap = h('div', { class: 'week' });
+    const reminder = backupReminder();
+    if (reminder) wrap.append(reminder);
 
     L.DAYS.forEach((dayName, dayIndex) => {
       const date = L.addDays(weekKey, dayIndex);
@@ -197,6 +199,35 @@
       wrap.append(card);
     });
     return wrap;
+  }
+
+  // ---------- copias de seguridad ----------
+  const BACKUP_EVERY_DAYS = 14;
+
+  function countMeals() {
+    return Object.values(state.weeks).reduce((n, w) => n + Object.keys(w.slots || {}).length, 0);
+  }
+
+  function daysSinceBackup() {
+    const last = Store.getMeta().lastBackup;
+    return last ? L.daysBetween(last, L.toISO(new Date())) : null;
+  }
+
+  /** Aviso para guardar una copia si hace tiempo que no se hace (solo con datos en el navegador). */
+  function backupReminder() {
+    if (syncMode === 'remote' || countMeals() < 3) return null;
+    const meta = Store.getMeta();
+    const today = L.toISO(new Date());
+    if (meta.snoozeUntil && meta.snoozeUntil > today) return null;
+    const days = daysSinceBackup();
+    if (days !== null && days < BACKUP_EVERY_DAYS) return null;
+    return h('div', { class: 'backup-banner' },
+      h('div', {},
+        h('strong', {}, days === null ? 'Aún no tienes copia de seguridad' : `Tu última copia es de hace ${days} días`),
+        h('p', { class: 'small' }, 'Tus comidas solo están en este móvil. Guarda una copia (en Drive, Archivos o enviándotela) por si cambias de móvil o se borra la app.')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary small', onclick: () => exportData() }, 'Guardar copia'),
+        h('button', { class: 'btn small ghost', onclick: () => { Store.setMeta({ snoozeUntil: L.addDays(today, 3) }); render(); } }, 'Luego')));
   }
 
   // ---------- editor de comida ----------
@@ -596,7 +627,10 @@
         h('h3', {}, 'Copia de seguridad'),
         h('p', { class: 'muted small' }, syncMode === 'remote'
           ? 'Tus datos se guardan en tu cuenta de Claude y se ven igual en el móvil y en el ordenador. Puedes exportar una copia por si acaso.'
-          : 'Los datos se guardan en este navegador. Exporta un archivo para pasarlos a otro móvil u ordenador.'),
+          : 'Los datos se guardan en este móvil. Las actualizaciones de la app llegan solas y no los borran: no hace falta desinstalarla. Si la desinstalas o cambias de móvil, importa una copia.'),
+        syncMode === 'remote' ? null : h('ul', { class: 'data-status small' },
+          h('li', {}, (() => { const d = daysSinceBackup(); return d === null ? 'Última copia: nunca' : d === 0 ? 'Última copia: hoy' : `Última copia: hace ${d} ${d === 1 ? 'día' : 'días'}`; })()),
+          h('li', {}, storagePersisted === true ? 'Protección contra borrado automático: activada' : storagePersisted === false ? 'Protección contra borrado automático: no concedida (instala la app en la pantalla de inicio)' : 'Protección contra borrado automático: no disponible en este navegador')),
         h('div', { class: 'row' },
           h('button', {
             class: 'btn', onclick: () => exportData()
@@ -618,15 +652,34 @@
     if (window.top !== window) {
       const downloads = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
       if (downloads) {
-        try { await downloads.save({ filename, data: json }); } catch (e) { if (e && e.code !== 'declined') toast('No se pudo guardar el archivo.'); }
+        try { await downloads.save({ filename, data: json }); backupDone(); } catch (e) { if (e && e.code !== 'declined') toast('No se pudo guardar el archivo.'); }
         return;
       }
       const area = h('textarea', { rows: 14, readonly: true }, json);
       openModal('Copia de seguridad', h('div', {}, h('p', { class: 'muted small' }, 'Copia este texto y guárdalo en un archivo .json.'), area));
       return;
     }
-    const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: filename });
+    const blob = new Blob([json], { type: 'application/json' });
+    // En el móvil, compartir el archivo permite guardarlo en Drive, Archivos, WhatsApp…
+    try {
+      const file = new File([blob], filename, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Copia de Planning de comidas' });
+        backupDone();
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    const a = h('a', { href: URL.createObjectURL(blob), download: filename });
     document.body.append(a); a.click(); a.remove();
+    backupDone();
+  }
+
+  function backupDone() {
+    Store.setMeta({ lastBackup: L.toISO(new Date()), snoozeUntil: null });
+    toast('Copia de seguridad guardada');
+    render();
   }
 
   // ---------- arranque ----------
@@ -635,7 +688,10 @@
   document.getElementById('week-next').addEventListener('click', () => { weekKey = L.addDays(weekKey, 7); render(); });
   document.getElementById('week-today').addEventListener('click', () => { weekKey = L.weekStart(new Date()); render(); });
 
+  let storagePersisted = null;
   render();
+
+  Store.persist().then((ok) => { storagePersisted = ok; if (view === 'settings') render(); });
 
   Store.connect(
     (next) => { syncMode = 'remote'; applyRemote(next); },
@@ -643,6 +699,12 @@
   ).then((ok) => { if (ok) { syncMode = 'remote'; if (view === 'settings') render(); } });
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update())
+      .catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) toast('App actualizada. Tus datos siguen aquí.');
+    });
   }
 })();

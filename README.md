@@ -28,6 +28,24 @@ y abre <http://localhost:8080>. También funciona abriendo `index.html` directam
 
 Para tenerla en el móvil, publícala con **GitHub Pages** (Settings → Pages → rama `main`, carpeta `/`), ábrela en el móvil y elige *"Añadir a pantalla de inicio"*.
 
+## Actualizar sin perder datos
+
+**No hace falta desinstalar ni reinstalar la app para actualizarla.** Los datos se guardan en el almacenamiento del navegador ligado a la dirección de la app, y una actualización solo cambia los archivos de la app.
+
+1. Sube los cambios a la rama que publica GitHub Pages.
+2. En `sw.js`, sube el número de `CACHE` (`v2` → `v3`…) para que el móvil descargue los archivos nuevos y borre los viejos.
+3. Abre la app en el móvil con conexión: cargará la versión nueva y verás el aviso "App actualizada. Tus datos siguen aquí". Si no aparece, ciérrala del todo y ábrela otra vez.
+
+Los datos **sí se pierden** si:
+
+- **Desinstalas la app** de la pantalla de inicio (en iPhone siempre; en Android, si eliges borrar los datos).
+- **Cambias la dirección** donde está publicada (otro dominio u otra ruta = almacenamiento nuevo y vacío).
+- Borras los datos de navegación del navegador.
+
+Para esos casos están las **copias de seguridad**: en *Ajustes → Copia de seguridad → Exportar* (en el móvil se puede guardar directamente en Drive, Archivos o enviar por WhatsApp) y luego *Importar* en la app nueva. La app avisa en la pantalla de la semana si hace más de 14 días que no haces una copia, y pide al navegador que no borre sus datos automáticamente.
+
+Para desarrolladores: la clave de `localStorage` (`planificador-comidas-v1`) no debe cambiar. Si algún día cambia la forma de los datos, sube `DATA_VERSION` en `js/store.js` y añade la conversión en `upgrade()`; antes de convertir se guarda una copia intacta de los datos antiguos.
+
 ## Como artefacto de Claude
 
 `npm run build` genera `artifact/planning-comidas.html`, la app en un solo archivo lista para publicarse como artefacto de Claude. Ahí los datos se guardan en la base de datos del artefacto (capacidad `db`), así que se ven igual en el móvil y en el ordenador. Fuera de Claude la app sigue usando el almacenamiento del navegador.

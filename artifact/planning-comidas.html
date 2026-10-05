@@ -139,6 +139,18 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Aviso de copia de seguridad */
+.backup-banner {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--accent); color: var(--accent-text);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.backup-banner > div:first-child { flex: 1 1 260px; min-width: 0; }
+.backup-banner p { margin: 2px 0 0; }
+.backup-banner .btn.ghost { color: var(--accent-text); border-color: currentColor; }
+.data-status { margin: 0 0 10px; padding-left: 18px; color: var(--muted); }
+
 /* Semana */
 .week {
   display: grid; gap: 12px;
@@ -712,12 +724,16 @@ dialog.confirm[open] { display: block; }
 (function (root) {
   'use strict';
 
+  // No cambies esta clave: es donde viven los datos en el móvil. Si cambia,
+  // la app arrancaría vacía tras una actualización.
   const KEY = 'planificador-comidas-v1';
+  const META_KEY = 'planificador-comidas-meta';
+  const DATA_VERSION = 1;
   const { STAPLES } = root.Logic;
 
   function defaults() {
     return {
-      version: 1,
+      version: DATA_VERSION,
       settings: {
         meals: ['Comida', 'Cena'],
         supermarkets: ['Mercadona', 'Lidl', 'Carrefour', 'Dia', 'Alcampo', 'Frutería'],
@@ -739,15 +755,28 @@ dialog.confirm[open] { display: block; }
       settings: { ...base.settings, ...(data.settings || {}) },
       recipes: Array.isArray(data.recipes) ? data.recipes : [],
       weeks: data.weeks || {},
-      ingredientShop: data.ingredientShop || {}
+      ingredientShop: data.ingredientShop || {},
+      version: DATA_VERSION
     };
+  }
+
+  // Aquí irán las conversiones si algún día cambia la forma de los datos:
+  // if (data.version < 2) { ...convertir... }
+  function upgrade(data) {
+    return migrate(data);
   }
 
   // ---------- localStorage ----------
   function loadLocal() {
     try {
       const raw = localStorage.getItem(KEY);
-      return raw ? migrate(JSON.parse(raw)) : defaults();
+      if (!raw) return defaults();
+      const data = JSON.parse(raw);
+      if ((data.version || 1) < DATA_VERSION) {
+        // Copia intacta antes de convertir los datos a la nueva versión.
+        localStorage.setItem(`${KEY}-antes-de-v${DATA_VERSION}`, raw);
+      }
+      return upgrade(data);
     } catch (e) {
       return defaults();
     }
@@ -893,6 +922,25 @@ dialog.confirm[open] { display: block; }
     return loadLocal();
   }
 
+  // Datos pequeños de la propia app (última copia, avisos aplazados).
+  function getMeta() {
+    try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function setMeta(patch) {
+    try { localStorage.setItem(META_KEY, JSON.stringify({ ...getMeta(), ...patch })); } catch (e) { /* sin almacenamiento */ }
+  }
+
+  /** Pide al navegador que no borre los datos aunque falte espacio o no se use la app. */
+  async function persist() {
+    try {
+      if (!navigator.storage || !navigator.storage.persist) return null;
+      if (await navigator.storage.persisted()) return true;
+      return await navigator.storage.persist();
+    } catch (e) {
+      return null;
+    }
+  }
+
   function save(state) {
     if (remote.db) saveRemote(state);
     else if (!saveLocal(state) && remote.onError) remote.onError({ code: 'local' });
@@ -902,7 +950,7 @@ dialog.confirm[open] { display: block; }
     return !!remote.db;
   }
 
-  root.Store = { load, save, defaults, migrate, connect, isRemote, toDocs, fromDocs, stable };
+  root.Store = { load, save, defaults, migrate: upgrade, connect, isRemote, toDocs, fromDocs, stable, getMeta, setMeta, persist, DATA_VERSION };
 })(typeof self !== 'undefined' ? self : this);
 
 /* Interfaz del planificador de comidas semanal. */
@@ -1071,6 +1119,8 @@ dialog.confirm[open] { display: block; }
     const week = getWeek(weekKey);
     const today = L.toISO(new Date());
     const wrap = h('div', { class: 'week' });
+    const reminder = backupReminder();
+    if (reminder) wrap.append(reminder);
 
     L.DAYS.forEach((dayName, dayIndex) => {
       const date = L.addDays(weekKey, dayIndex);
@@ -1104,6 +1154,35 @@ dialog.confirm[open] { display: block; }
       wrap.append(card);
     });
     return wrap;
+  }
+
+  // ---------- copias de seguridad ----------
+  const BACKUP_EVERY_DAYS = 14;
+
+  function countMeals() {
+    return Object.values(state.weeks).reduce((n, w) => n + Object.keys(w.slots || {}).length, 0);
+  }
+
+  function daysSinceBackup() {
+    const last = Store.getMeta().lastBackup;
+    return last ? L.daysBetween(last, L.toISO(new Date())) : null;
+  }
+
+  /** Aviso para guardar una copia si hace tiempo que no se hace (solo con datos en el navegador). */
+  function backupReminder() {
+    if (syncMode === 'remote' || countMeals() < 3) return null;
+    const meta = Store.getMeta();
+    const today = L.toISO(new Date());
+    if (meta.snoozeUntil && meta.snoozeUntil > today) return null;
+    const days = daysSinceBackup();
+    if (days !== null && days < BACKUP_EVERY_DAYS) return null;
+    return h('div', { class: 'backup-banner' },
+      h('div', {},
+        h('strong', {}, days === null ? 'Aún no tienes copia de seguridad' : `Tu última copia es de hace ${days} días`),
+        h('p', { class: 'small' }, 'Tus comidas solo están en este móvil. Guarda una copia (en Drive, Archivos o enviándotela) por si cambias de móvil o se borra la app.')),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary small', onclick: () => exportData() }, 'Guardar copia'),
+        h('button', { class: 'btn small ghost', onclick: () => { Store.setMeta({ snoozeUntil: L.addDays(today, 3) }); render(); } }, 'Luego')));
   }
 
   // ---------- editor de comida ----------
@@ -1503,7 +1582,10 @@ dialog.confirm[open] { display: block; }
         h('h3', {}, 'Copia de seguridad'),
         h('p', { class: 'muted small' }, syncMode === 'remote'
           ? 'Tus datos se guardan en tu cuenta de Claude y se ven igual en el móvil y en el ordenador. Puedes exportar una copia por si acaso.'
-          : 'Los datos se guardan en este navegador. Exporta un archivo para pasarlos a otro móvil u ordenador.'),
+          : 'Los datos se guardan en este móvil. Las actualizaciones de la app llegan solas y no los borran: no hace falta desinstalarla. Si la desinstalas o cambias de móvil, importa una copia.'),
+        syncMode === 'remote' ? null : h('ul', { class: 'data-status small' },
+          h('li', {}, (() => { const d = daysSinceBackup(); return d === null ? 'Última copia: nunca' : d === 0 ? 'Última copia: hoy' : `Última copia: hace ${d} ${d === 1 ? 'día' : 'días'}`; })()),
+          h('li', {}, storagePersisted === true ? 'Protección contra borrado automático: activada' : storagePersisted === false ? 'Protección contra borrado automático: no concedida (instala la app en la pantalla de inicio)' : 'Protección contra borrado automático: no disponible en este navegador')),
         h('div', { class: 'row' },
           h('button', {
             class: 'btn', onclick: () => exportData()
@@ -1525,15 +1607,34 @@ dialog.confirm[open] { display: block; }
     if (window.top !== window) {
       const downloads = window.claude && window.claude.use ? await window.claude.use('downloads').catch(() => null) : null;
       if (downloads) {
-        try { await downloads.save({ filename, data: json }); } catch (e) { if (e && e.code !== 'declined') toast('No se pudo guardar el archivo.'); }
+        try { await downloads.save({ filename, data: json }); backupDone(); } catch (e) { if (e && e.code !== 'declined') toast('No se pudo guardar el archivo.'); }
         return;
       }
       const area = h('textarea', { rows: 14, readonly: true }, json);
       openModal('Copia de seguridad', h('div', {}, h('p', { class: 'muted small' }, 'Copia este texto y guárdalo en un archivo .json.'), area));
       return;
     }
-    const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: filename });
+    const blob = new Blob([json], { type: 'application/json' });
+    // En el móvil, compartir el archivo permite guardarlo en Drive, Archivos, WhatsApp…
+    try {
+      const file = new File([blob], filename, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Copia de Planning de comidas' });
+        backupDone();
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    const a = h('a', { href: URL.createObjectURL(blob), download: filename });
     document.body.append(a); a.click(); a.remove();
+    backupDone();
+  }
+
+  function backupDone() {
+    Store.setMeta({ lastBackup: L.toISO(new Date()), snoozeUntil: null });
+    toast('Copia de seguridad guardada');
+    render();
   }
 
   // ---------- arranque ----------
@@ -1542,7 +1643,10 @@ dialog.confirm[open] { display: block; }
   document.getElementById('week-next').addEventListener('click', () => { weekKey = L.addDays(weekKey, 7); render(); });
   document.getElementById('week-today').addEventListener('click', () => { weekKey = L.weekStart(new Date()); render(); });
 
+  let storagePersisted = null;
   render();
+
+  Store.persist().then((ok) => { storagePersisted = ok; if (view === 'settings') render(); });
 
   Store.connect(
     (next) => { syncMode = 'remote'; applyRemote(next); },
@@ -1550,7 +1654,13 @@ dialog.confirm[open] { display: block; }
   ).then((ok) => { if (ok) { syncMode = 'remote'; if (view === 'settings') render(); } });
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => reg.update())
+      .catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) toast('App actualizada. Tus datos siguen aquí.');
+    });
   }
 })();
 

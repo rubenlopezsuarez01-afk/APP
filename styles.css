@@ -135,6 +135,18 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Aviso de copia de seguridad */
+.backup-banner {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--accent); color: var(--accent-text);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.backup-banner > div:first-child { flex: 1 1 260px; min-width: 0; }
+.backup-banner p { margin: 2px 0 0; }
+.backup-banner .btn.ghost { color: var(--accent-text); border-color: currentColor; }
+.data-status { margin: 0 0 10px; padding-left: 18px; color: var(--muted); }
+
 /* Semana */
 .week {
   display: grid; gap: 12px;
