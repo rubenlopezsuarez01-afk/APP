@@ -135,6 +135,20 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Compartir */
+.sync-status {
+  font-size: .75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px;
+  background: var(--have); color: var(--primary); white-space: nowrap;
+}
+.sync-status[data-state="pending"], .sync-status[data-state="connecting"] { background: var(--accent); color: var(--accent-text); }
+.share-code {
+  display: flex; flex-direction: column; gap: 2px; margin: 4px 0 12px;
+  background: var(--bg); border-radius: 10px; padding: 10px 12px;
+}
+.share-code .code { font-size: 1.1rem; letter-spacing: .06em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.share .join-label { margin-top: 14px; }
+.share form input { flex: 1 1 200px; min-width: 0; text-transform: uppercase; }
+
 /* Aviso de copia de seguridad */
 .backup-banner {
   grid-column: 1 / -1;

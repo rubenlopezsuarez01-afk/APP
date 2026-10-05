@@ -34,6 +34,41 @@ y abre <http://localhost:8080>. También funciona abriendo `index.html` directam
    - **iPhone (Safari):** botón Compartir → *Añadir a pantalla de inicio*.
 3. Se abre a pantalla completa desde su icono y funciona sin conexión.
 
+## Compartir con otra persona
+
+Dos móviles (o más) pueden usar el mismo planning: lo que uno añade, cambia o tacha en la lista aparece en el otro en un par de segundos. Funciona sin conexión: los cambios se envían al volver la cobertura. Los datos se guardan en **Firebase** (de Google), gratis para este uso.
+
+### 1. Crear el proyecto de Firebase (una sola vez, unos 10 minutos)
+
+1. Entra en <https://console.firebase.google.com> con tu cuenta de Google y pulsa **Crear proyecto** (por ejemplo, `planning-comidas`). Google Analytics no hace falta.
+2. En el menú, **Compilación → Firestore Database → Crear base de datos**. Elige una ubicación en Europa (por ejemplo `eur3`) y el **modo de producción**.
+3. En la pestaña **Reglas** de Firestore, borra lo que haya, pega el contenido del archivo [`firestore.rules`](firestore.rules) y pulsa **Publicar**.
+4. Ve a **Configuración del proyecto** (rueda dentada) → **Tus apps** → icono web **`</>`**. Ponle un nombre y registra la app (Firebase Hosting no hace falta).
+5. Copia el objeto `firebaseConfig` que aparece y pégalo en [`js/firebase-config.js`](js/firebase-config.js), así:
+
+   ```js
+   window.FIREBASE_CONFIG = {
+     apiKey: "...",
+     authDomain: "...",
+     projectId: "...",
+     storageBucket: "...",
+     messagingSenderId: "...",
+     appId: "..."
+   };
+   ```
+
+   Estos datos no son secretos (van en la página web de todas formas); lo que protege la información son las reglas del paso 3.
+6. Sube el cambio a GitHub (y sube el número de `CACHE` en `sw.js`).
+
+### 2. Conectar los móviles
+
+1. **Tu móvil:** *Ajustes → Compartir con otra persona → Crear espacio compartido*. Lo que ya tengas se sube al espacio. Pulsa **Invitar a alguien** y envía la invitación por WhatsApp.
+2. **El otro móvil:** instala la app, abre *Ajustes → Compartir con otra persona*, pega el código (o el enlace entero) y pulsa **Unirme**. También vale abrir el enlace de la invitación.
+   - En **iPhone**, la app instalada en la pantalla de inicio guarda sus datos aparte de Safari: únete **desde la app instalada** pegando el código.
+3. Arriba aparece **Compartido**. Si pone **Sin conexión**, los cambios se enviarán solos al volver la cobertura.
+
+Quien tenga el código puede ver y cambiar el planning, así que compártelo solo con quien quieras. *Dejar de compartir* desconecta ese móvil (se queda con una copia de los datos).
+
 ## Actualizar sin perder datos
 
 **No hace falta desinstalar ni reinstalar la app para actualizarla.** Los datos se guardan en el almacenamiento del navegador ligado a la dirección de la app, y una actualización solo cambia los archivos de la app.
@@ -71,7 +106,8 @@ npm test
 | `index.html`, `styles.css` | Interfaz |
 | `js/logic.js` | Lógica pura: lista de la compra, historial y sugerencias |
 | `js/catalog.js` | Recetario incluido |
-| `js/store.js` | Guardado en `localStorage` o en la base de datos del artefacto |
+| `js/store.js` | Guardado en `localStorage` y sincronización (Firebase o base de datos del artefacto) |
+| `js/sync-firebase.js`, `js/firebase-config.js`, `firestore.rules` | Espacio compartido entre móviles |
 | `js/app.js` | Pantallas y eventos |
 | `sw.js`, `manifest.json` | Modo offline e instalación (PWA) |
 | `scripts/build-artifact.js` | Genera el HTML único del artefacto |

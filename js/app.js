@@ -215,7 +215,7 @@
 
   /** Aviso para guardar una copia si hace tiempo que no se hace (solo con datos en el navegador). */
   function backupReminder() {
-    if (syncMode === 'remote' || countMeals() < 3) return null;
+    if (syncMode !== 'local' || countMeals() < 3) return null;
     const meta = Store.getMeta();
     const today = L.toISO(new Date());
     if (meta.snoozeUntil && meta.snoozeUntil > today) return null;
@@ -619,16 +619,19 @@
     });
 
     return h('div', { class: 'settings-view' },
+      renderShareSection(),
       field('Comidas del día', 'Una por línea (ej. Desayuno, Comida, Cena).', s.meals, (v) => { if (v.length) s.meals = v; }, 3),
       field('Supermercados', 'Uno por línea. Aparecerán al lado de cada ingrediente.', s.supermarkets, (v) => { s.supermarkets = v; }),
       field('Siempre tengo en casa', 'Estos ingredientes se marcan como "Tengo" automáticamente y no van a la lista.', s.pantry, (v) => { s.pantry = v; }),
       field('No cuentan para repetir', 'Al proponer ideas se evitan platos con alimentos que ya comes esta semana. Estos básicos no cuentan.', s.staples, (v) => { s.staples = v; }, 6),
       h('section', { class: 'card setting' },
         h('h3', {}, 'Copia de seguridad'),
-        h('p', { class: 'muted small' }, syncMode === 'remote'
+        h('p', { class: 'muted small' }, syncMode === 'claude'
           ? 'Tus datos se guardan en tu cuenta de Claude y se ven igual en el móvil y en el ordenador. Puedes exportar una copia por si acaso.'
-          : 'Los datos se guardan en este móvil. Las actualizaciones de la app llegan solas y no los borran: no hace falta desinstalarla. Si la desinstalas o cambias de móvil, importa una copia.'),
-        syncMode === 'remote' ? null : h('ul', { class: 'data-status small' },
+          : syncMode === 'shared'
+            ? 'Tus datos están en el espacio compartido y en este móvil. Si desinstalas la app, vuelve a unirte con el código y aparecerán. Puedes exportar una copia por si acaso.'
+            : 'Los datos se guardan en este móvil. Las actualizaciones de la app llegan solas y no los borran: no hace falta desinstalarla. Si la desinstalas o cambias de móvil, importa una copia.'),
+        syncMode !== 'local' ? null : h('ul', { class: 'data-status small' },
           h('li', {}, (() => { const d = daysSinceBackup(); return d === null ? 'Última copia: nunca' : d === 0 ? 'Última copia: hoy' : `Última copia: hace ${d} ${d === 1 ? 'día' : 'días'}`; })()),
           h('li', {}, storagePersisted === true ? 'Protección contra borrado automático: activada' : storagePersisted === false ? 'Protección contra borrado automático: no concedida (instala la app en la pantalla de inicio)' : 'Protección contra borrado automático: no disponible en este navegador')),
         h('div', { class: 'row' },
@@ -645,6 +648,139 @@
             }
           }, 'Borrar todo'))));
   }
+
+  // ---------- compartir con otra persona ----------
+  const Sync = window.FirebaseSync;
+  const inArtifact = window.top !== window && !!window.claude;
+
+  function renderShareSection() {
+    const section = (...children) => h('section', { class: 'card setting share' }, h('h3', {}, 'Compartir con otra persona'), ...children);
+    if (inArtifact) {
+      return section(h('p', { class: 'muted small' },
+        'Para que otra persona use este planning, invítala desde el menú Compartir de Claude como editora. Veréis los mismos datos.'));
+    }
+    if (!Sync || !Sync.isConfigured()) {
+      return section(
+        h('p', { class: 'muted small' }, 'Para compartir el planning y la lista con otro móvil hace falta conectar la app a Firebase (gratis). Se hace una sola vez: sigue los pasos de "Compartir con otra persona" en el README del proyecto.'));
+    }
+    const code = Store.getMeta().household;
+    if (code) {
+      const link = Sync.inviteLink(code);
+      return section(
+        h('p', { class: 'muted small' }, 'Este móvil está en un espacio compartido. Todo lo que cambiéis cualquiera de los dos aparece en el otro móvil al momento.'),
+        h('div', { class: 'share-code' },
+          h('span', { class: 'muted small' }, 'Código'),
+          h('strong', { class: 'code' }, Sync.formatCode(code))),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn primary', onclick: () => shareInvite(link) }, 'Invitar a alguien'),
+          h('button', { class: 'btn', onclick: () => copyText(Sync.formatCode(code), 'Código copiado') }, 'Copiar código'),
+          h('span', { class: 'spacer' }),
+          h('button', {
+            class: 'btn danger', onclick: async () => {
+              if (!await ask('Este móvil dejará de recibir los cambios del espacio compartido. Se queda con una copia de los datos actuales.', 'Dejar de compartir', true)) return;
+              Store.disconnect();
+              Store.setMeta({ household: null });
+              setSync('local');
+              render();
+              toast('Has salido del espacio compartido');
+            }
+          }, 'Dejar de compartir')));
+    }
+    const codeIn = h('input', { type: 'text', id: 'join-code', placeholder: 'Código o enlace de invitación', autocomplete: 'off', autocapitalize: 'characters' });
+    return section(
+      h('p', { class: 'muted small' }, 'Crea un espacio compartido y envía la invitación a la otra persona. Los dos veréis y editaréis el mismo planning, las recetas y la lista de la compra.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', onclick: createSpace }, 'Crear espacio compartido')),
+      h('p', { class: 'muted small join-label' }, '¿Te han invitado? Escribe aquí el código o pega el enlace:'),
+      h('form', {
+        class: 'row', onsubmit: (e) => { e.preventDefault(); joinSpace(codeIn.value); }
+      }, codeIn, h('button', { class: 'btn', type: 'submit' }, 'Unirme')));
+  }
+
+  async function copyText(text, msg) {
+    try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) {
+      const area = h('textarea', { rows: 3, readonly: true }, text);
+      openModal('Copia el texto', area);
+      area.select();
+    }
+  }
+
+  async function shareInvite(link) {
+    const text = `Únete a nuestro planning de comidas. Abre este enlace o, en la app, ve a Ajustes → Compartir y pega este código: ${Sync.formatCode(Store.getMeta().household)}\n${link}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Planning de comidas', text }); return; }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    copyText(text, 'Invitación copiada: pégala en WhatsApp');
+  }
+
+  async function createSpace() {
+    const code = Sync.newCode();
+    try {
+      setSync('connecting');
+      await startShared(code, { initial: state });
+      Store.setMeta({ household: code });
+      render();
+      toast('Espacio creado. Ahora invita a la otra persona.');
+    } catch (e) {
+      setSync('local');
+      toast(e && e.code === 'offline' ? 'Sin conexión. Inténtalo con internet.' : 'No se pudo crear el espacio compartido.');
+    }
+  }
+
+  async function joinSpace(text) {
+    const code = Sync.cleanCode(text);
+    if (!code) { toast('Ese código no es válido. Revisa que esté completo.'); return; }
+    if (code === Store.getMeta().household) { toast('Ya estás en este espacio'); return; }
+    try {
+      setSync('connecting');
+      if (!await Sync.exists(code)) { setSync(Store.getMeta().household ? 'shared' : 'local'); toast('No existe ningún espacio con ese código.'); return; }
+    } catch (e) {
+      setSync(Store.getMeta().household ? 'shared' : 'local');
+      toast('Sin conexión. Para unirte hace falta internet.');
+      return;
+    }
+    const hasData = countMeals() > 0 || state.recipes.length > 0;
+    if (hasData && !await ask('Los datos de este móvil se sustituirán por los del espacio compartido. Se guardará una copia de los actuales por si acaso.', 'Unirme', true)) {
+      setSync(Store.getMeta().household ? 'shared' : 'local');
+      return;
+    }
+    Store.backupLocal('antes-de-unirse');
+    Store.setMeta({ household: code });
+    await startShared(code, {});
+    if (location.hash.startsWith('#unirse=')) history.replaceState(null, '', location.pathname);
+    view = 'week';
+    render();
+    toast('¡Listo! Ya compartís el planning.');
+  }
+
+  async function startShared(code, opts) {
+    const db = await Sync.open(code);
+    Store.connect(db, {
+      ...opts,
+      onRemote: (next) => applyRemote(next),
+      onError: (e) => toast(e && e.code === 'permission-denied' ? 'El servidor ha rechazado el cambio. Revisa las reglas de Firebase.' : 'No se pudo sincronizar el último cambio. Se reintentará con conexión.'),
+      onStatus: (st) => setSync(st === 'pending' ? 'pending' : 'shared')
+    });
+    setSync('shared');
+  }
+
+  // Indicador de sincronización en la barra superior.
+  function setSync(mode) {
+    const el = document.getElementById('sync-status');
+    if (mode === 'pending' || mode === 'connecting') {
+      if (syncMode === 'local') syncMode = 'shared';
+    } else {
+      syncMode = mode;
+    }
+    if (!el) return;
+    const labels = { shared: 'Compartido', pending: navigator.onLine ? 'Enviando…' : 'Sin conexión', connecting: 'Conectando…' };
+    el.hidden = !labels[mode];
+    el.textContent = labels[mode] || '';
+    el.dataset.state = mode;
+  }
+  window.addEventListener('online', () => { if (syncMode === 'shared') setSync('shared'); });
 
   async function exportData() {
     const json = JSON.stringify(state, null, 2);
@@ -693,10 +829,23 @@
 
   Store.persist().then((ok) => { storagePersisted = ok; if (view === 'settings') render(); });
 
-  Store.connect(
-    (next) => { syncMode = 'remote'; applyRemote(next); },
-    (e) => toast(e && e.code === 'quota_exceeded' ? 'No queda espacio para guardar más datos.' : 'No se pudo guardar el último cambio. Revisa la conexión.')
-  ).then((ok) => { if (ok) { syncMode = 'remote'; if (view === 'settings') render(); } });
+  const household = Store.getMeta().household;
+  if (inArtifact || !Sync) {
+    Store.connectClaude({
+      onRemote: (next) => { syncMode = 'claude'; applyRemote(next); },
+      onError: (e) => toast(e && e.code === 'quota_exceeded' ? 'No queda espacio para guardar más datos.' : 'No se pudo guardar el último cambio. Revisa la conexión.')
+    }).then((ok) => { if (ok) { syncMode = 'claude'; if (view === 'settings') render(); } });
+  } else if (household && Sync.isConfigured()) {
+    setSync('connecting');
+    startShared(household, {}).catch(() => setSync('pending'));
+  }
+
+  // Enlace de invitación: #unirse=CODIGO
+  if (location.hash.startsWith('#unirse=') && Sync && Sync.isConfigured() && !inArtifact) {
+    view = 'settings';
+    render();
+    joinSpace(location.hash);
+  }
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window) {
     const hadController = !!navigator.serviceWorker.controller;
