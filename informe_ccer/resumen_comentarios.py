@@ -9,7 +9,8 @@ reportado cada tipo de incidencia. Ejemplo:
     Limitaciones (19 días); Meteorológico (1 día); Subestación (SET) (1 día)
 
 Uso:
-    python resumen_comentarios.py CARPETA_PDFS [-o salida.xlsx]
+    1) Edita la variable CARPETA (más abajo) y ejecuta el script (botón "Run"), o
+    2) python resumen_comentarios.py CARPETA_PDFS [-o salida.xlsx]
 
 Requisitos:
     pip install pdfplumber openpyxl
@@ -26,6 +27,16 @@ import pdfplumber
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+
+# ---------------------------------------------------------------------------
+# >>> PON AQUÍ LA RUTA DE LA CARPETA CON LOS PDF DEL MES <<<
+# (la "r" delante evita problemas con las barras "\" de Windows)
+# Si ejecutas el script desde la terminal pasándole una carpeta, se usa esa.
+# ---------------------------------------------------------------------------
+CARPETA = r"C:\Users\TU_USUARIO\Documents\Informes CCER\Septiembre"
+
+# Excel de salida. Déjalo vacío ("") para guardarlo dentro de la carpeta.
+SALIDA = r""
 
 # ---------------------------------------------------------------------------
 # Categorías: se recorren en orden y cada fragmento del comentario se asigna a
@@ -216,13 +227,16 @@ def generar_excel(carpeta, salida):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("carpeta", help="Carpeta con los PDF diarios del mes")
-    ap.add_argument("-o", "--salida", help="Ruta del Excel de salida (por defecto, dentro de la carpeta)")
+    ap.add_argument("carpeta", nargs="?", default=CARPETA,
+                    help="Carpeta con los PDF diarios del mes (por defecto, la variable CARPETA)")
+    ap.add_argument("-o", "--salida", default=SALIDA,
+                    help="Ruta del Excel de salida (por defecto, dentro de la carpeta)")
     args = ap.parse_args()
 
     carpeta = Path(args.carpeta)
     if not carpeta.is_dir():
-        sys.exit(f"La carpeta no existe: {carpeta}")
+        sys.exit(f"La carpeta no existe: {carpeta}\n"
+                 "Revisa la variable CARPETA al principio del script.")
     salida = Path(args.salida) if args.salida else carpeta / "Resumen_comentarios_CCER.xlsx"
     generar_excel(carpeta, salida)
 
