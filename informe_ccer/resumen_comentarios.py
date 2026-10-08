@@ -231,7 +231,10 @@ def main():
                     help="Carpeta con los PDF diarios del mes (por defecto, la variable CARPETA)")
     ap.add_argument("-o", "--salida", default=SALIDA,
                     help="Ruta del Excel de salida (por defecto, dentro de la carpeta)")
-    args = ap.parse_args()
+    # En Jupyter/Spyder sys.argv trae argumentos del propio kernel: se ignoran
+    # y se usan las variables CARPETA y SALIDA.
+    en_notebook = "ipykernel" in sys.modules or "IPython" in sys.modules
+    args = ap.parse_args([] if en_notebook else None)
 
     carpeta = Path(args.carpeta)
     if not carpeta.is_dir():
