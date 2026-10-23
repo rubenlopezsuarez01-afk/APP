@@ -11,8 +11,13 @@ const Store = global.Store;
 function sample() {
   const s = Store.defaults();
   s.weeks['2026-10-05'] = {
-    slots: { '0|Comida': { name: 'Lentejas', ingredients: [{ name: 'Lentejas', qty: '400 g', supermarket: 'Lidl', have: false }] } },
-    extras: [{ id: 'a1', name: 'Papel de cocina', qty: '', supermarket: 'Mercadona' }],
+    slots: { '0|Comida': { name: 'Lentejas', ingredients: [{ name: 'Lentejas', qty: '400 g', supermarket: 'Lidl', have: false }] } }
+  };
+  s.list = {
+    extras: [
+      { id: 'a1', name: 'Papel de cocina', qty: '', supermarket: 'Mercadona', from: null },
+      { id: 'a2', name: 'Carne para barbacoa', qty: '1 kg', supermarket: '', from: '2026-11-01' }
+    ],
     checked: { 'Lidl::lenteja': true, 'Sin asignar::pan de molde': true }
   };
   s.recipes.push({ id: 'r1', name: 'Lentejas', ingredients: [], notes: '' });
@@ -20,36 +25,49 @@ function sample() {
 }
 
 test('toDocs separa comidas, lista y tachados en documentos propios', () => {
-  const docs = Store.toDocs(sample(), '2026-10-07');
+  const docs = Store.toDocs(sample());
   const paths = Object.keys(docs).sort();
-  assert.deepStrictEqual(paths.filter((p) => !p.startsWith('checks/')), ['extras/a1', 'meta/settings', 'recipes/r1', 'weeks/2026-10-05']);
-  assert.strictEqual(paths.filter((p) => p.startsWith('checks/2026-10-05~')).length, 2);
+  assert.deepStrictEqual(paths.filter((p) => !p.startsWith('checks/')), ['extras/a1', 'extras/a2', 'meta/settings', 'recipes/r1', 'weeks/2026-10-05']);
+  assert.strictEqual(paths.filter((p) => p.startsWith('checks/')).length, 2);
   // Ids válidos para Firebase y para la base de datos del artefacto.
   for (const p of paths) assert.match(p, /^[a-z]+\/[A-Za-z0-9_.~:@+-]+$/, p);
   assert.deepStrictEqual(Object.keys(docs['weeks/2026-10-05']), ['slots']);
+  assert.strictEqual(docs['extras/a2'].from, '2026-11-01');
 });
 
 test('fromDocs reconstruye el mismo estado', () => {
   const s = sample();
-  const back = Store.fromDocs(JSON.parse(JSON.stringify(Store.toDocs(s, '2026-10-07'))));
+  const back = Store.fromDocs(JSON.parse(JSON.stringify(Store.toDocs(s))));
   assert.deepStrictEqual(back.weeks, s.weeks);
+  assert.deepStrictEqual(back.list, s.list);
   assert.deepStrictEqual(back.recipes, s.recipes);
   assert.deepStrictEqual(back.settings, s.settings);
 });
 
-test('fromDocs entiende el formato antiguo (lista dentro de la semana)', () => {
-  const back = Store.fromDocs({ 'weeks/2026-10-05': { slots: {}, extras: [{ id: 'x', name: 'Café' }], checked: { 'Lidl::cafe': true } } });
-  assert.strictEqual(back.weeks['2026-10-05'].extras[0].name, 'Café');
-  assert.ok(back.weeks['2026-10-05'].checked['Lidl::cafe']);
+test('fromDocs pasa la lista por semanas (formato antiguo) a la lista general', () => {
+  const now = Logic.weekStart(new Date());
+  const old = '2020-01-06';
+  const back = Store.fromDocs({
+    [`weeks/${now}`]: { slots: {}, extras: [{ id: 'x', name: 'Café' }], checked: { 'Lidl::cafe': true } },
+    [`weeks/${old}`]: { slots: {}, extras: [], checked: { 'Lidl::sal': true } },
+    'extras/y': { week: now, name: 'Leche', qty: '', supermarket: 'Lidl' },
+    'checks/abc': { week: old, item: 'Lidl::viejo' },
+    'checks/def': { week: now, item: 'Lidl::leche' }
+  });
+  assert.deepStrictEqual(back.list.extras.map((e) => e.name).sort(), ['Café', 'Leche']);
+  assert.deepStrictEqual(Object.keys(back.list.checked).sort(), ['Lidl::cafe', 'Lidl::leche']);
+  assert.ok(!('extras' in back.weeks[now]));
 });
 
-test('la lista de semanas antiguas no se sube', () => {
-  const s = sample();
-  s.weeks['2026-01-05'] = { slots: { '0|Cena': { name: 'Sopa', ingredients: [] } }, extras: [{ id: 'old', name: 'Sal' }], checked: { a: true } };
-  const docs = Store.toDocs(s, '2026-10-07');
-  assert.ok(docs['weeks/2026-01-05'], 'las comidas antiguas se guardan (historial)');
-  assert.ok(!docs['extras/old']);
-  assert.ok(!Object.keys(docs).some((p) => p.startsWith('checks/2026-01-05')));
+test('los datos locales de la versión 1 se convierten y se guarda copia', () => {
+  const now = Logic.weekStart(new Date());
+  mem['planificador-comidas-v1'] = JSON.stringify({ version: 1, weeks: { [now]: { slots: {}, extras: [{ id: 'e', name: 'Pan' }], checked: { 'x::pan': true } } } });
+  const st = Store.load();
+  assert.strictEqual(st.version, 2);
+  assert.deepStrictEqual(st.list.extras.map((e) => e.name), ['Pan']);
+  assert.ok(st.list.checked['x::pan']);
+  assert.ok(mem['planificador-comidas-v1-antes-de-v2']);
+  delete mem['planificador-comidas-v1'];
 });
 
 test('dos móviles tachando a la vez no se pisan', async () => {
@@ -70,19 +88,14 @@ test('dos móviles tachando a la vez no se pisan', async () => {
       }
     })
   };
-  // Móvil A crea el espacio; móvil B tacha otro artículo partiendo de un estado sin el tachado de A.
   const a = sample();
   Store.connect(db, { onRemote: () => {}, initial: a });
   await new Promise((r) => setTimeout(r, 10));
-  const b = Store.fromDocs(JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(server)))));
-  a.weeks['2026-10-05'].checked['Mercadona::papel de cocina'] = true;
+  a.list.checked['Mercadona::papel de cocina'] = true;
   Store.save(a);
   await new Promise((r) => setTimeout(r, 10));
-  // B escribe su propio tachado: solo cambia su documento, no borra el de A.
-  b.weeks['2026-10-05'].checked['Lidl::lenteja'] = false;
-  const docsB = Store.toDocs(b);
-  const checks = Object.keys(server).filter((p) => p.startsWith('checks/'));
-  assert.strictEqual(checks.length, 3);
-  assert.ok(!Object.keys(docsB).some((p) => p.startsWith('checks/') && server[p] && server[p].item === 'Mercadona::papel de cocina'));
+  // Cada tachado es un documento: el de A no toca los demás.
+  const checks = Object.keys(server).filter((p) => p.startsWith('checks/')).map((p) => server[p].item).sort();
+  assert.deepStrictEqual(checks, ['Lidl::lenteja', 'Mercadona::papel de cocina', 'Sin asignar::pan de molde']);
   Store.disconnect();
 });

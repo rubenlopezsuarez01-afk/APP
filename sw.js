@@ -1,7 +1,7 @@
 /* Service worker: permite usar la app sin conexión. */
 // Sube este número en cada actualización para que el móvil limpie la caché vieja.
 // Los datos (localStorage) no se tocan: solo se renuevan los archivos de la app.
-const CACHE = 'planificador-comidas-v5';
+const CACHE = 'planificador-comidas-v6';
 const ASSETS = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png',
   'icons/icon-512.png', 'icons/apple-touch-icon.png',

@@ -10,7 +10,7 @@
   // la app arrancaría vacía tras una actualización.
   const KEY = 'planificador-comidas-v1';
   const META_KEY = 'planificador-comidas-meta';
-  const DATA_VERSION = 1;
+  const DATA_VERSION = 2;
   const { STAPLES } = root.Logic;
 
   function defaults() {
@@ -24,6 +24,7 @@
       },
       recipes: [],
       weeks: {},
+      list: { extras: [], checked: {} }, // lista de la compra general
       ingredientShop: {}
     };
   }
@@ -37,15 +38,41 @@
       settings: { ...base.settings, ...(data.settings || {}) },
       recipes: Array.isArray(data.recipes) ? data.recipes : [],
       weeks: data.weeks || {},
+      list: {
+        extras: (data.list && Array.isArray(data.list.extras)) ? data.list.extras : [],
+        checked: (data.list && data.list.checked) || {}
+      },
       ingredientShop: data.ingredientShop || {},
       version: DATA_VERSION
     };
   }
 
-  // Aquí irán las conversiones si algún día cambia la forma de los datos:
-  // if (data.version < 2) { ...convertir... }
+  function currentWeek() {
+    return root.Logic.weekStart(new Date());
+  }
+
+  /**
+   * v1 -> v2: la lista de la compra era por semanas (weeks[k].extras/checked).
+   * Ahora es una sola: se juntan los artículos añadidos a mano y se conservan
+   * los tachados de esta semana en adelante.
+   */
+  function moveWeekListsToGeneral(state) {
+    const now = currentWeek();
+    for (const [k, w] of Object.entries(state.weeks)) {
+      for (const ex of w.extras || []) {
+        if (!state.list.extras.some((x) => x.id === ex.id)) state.list.extras.push({ ...ex, from: ex.from || null });
+      }
+      if (k >= now) Object.assign(state.list.checked, w.checked || {});
+      delete w.extras;
+      delete w.checked;
+    }
+    return state;
+  }
+
+  // Conversiones cuando cambia la forma de los datos.
   function upgrade(data) {
-    return migrate(data);
+    const state = migrate(data);
+    return moveWeekListsToGeneral(state);
   }
 
   // ---------- localStorage ----------
@@ -95,41 +122,37 @@
   }
 
   const COLLECTIONS = ['weeks', 'recipes', 'extras', 'checks'];
-  // Los artículos añadidos a mano y los tachados de semanas antiguas se borran del servidor.
-  const KEEP_LIST_WEEKS = 8;
 
   /**
    * Estado de la app -> { ruta: cuerpo }. Cada cosa que se suele tocar a la vez
    * desde dos móviles va en su propio documento, para que no se pisen:
-   *   meta/settings            ajustes y supermercado de cada ingrediente
-   *   weeks/<lunes>            { slots } comidas de la semana
-   *   extras/<id>              artículo añadido a mano a la lista
-   *   checks/<lunes>~<hash>    artículo tachado en la lista
-   *   recipes/<id>             receta
+   *   meta/settings      ajustes y supermercado de cada ingrediente
+   *   weeks/<lunes>      { slots } comidas de la semana
+   *   extras/<id>        artículo añadido a mano a la lista ({ from } = desde qué día sale)
+   *   checks/<hash>      artículo tachado en la lista
+   *   recipes/<id>       receta
    */
-  function toDocs(state, todayISO) {
-    const L = root.Logic;
-    const cutoff = L.addDays(L.weekStart(todayISO ? L.fromISO(todayISO) : new Date()), -7 * KEEP_LIST_WEEKS);
+  function toDocs(state) {
     const docs = { 'meta/settings': { settings: state.settings, ingredientShop: state.ingredientShop } };
     for (const [k, w] of Object.entries(state.weeks)) {
       if (Object.keys(w.slots || {}).length) docs['weeks/' + k] = { slots: w.slots };
-      if (k < cutoff) continue;
-      for (const ex of w.extras || []) {
-        docs['extras/' + ex.id] = { week: k, name: ex.name, qty: ex.qty || '', supermarket: ex.supermarket || '' };
-      }
-      for (const item of Object.keys(w.checked || {})) {
-        if (w.checked[item]) docs['checks/' + k + '~' + hash(item)] = { week: k, item };
-      }
+    }
+    const list = state.list || { extras: [], checked: {} };
+    for (const ex of list.extras) {
+      docs['extras/' + ex.id] = { name: ex.name, qty: ex.qty || '', supermarket: ex.supermarket || '', from: ex.from || null };
+    }
+    for (const item of Object.keys(list.checked)) {
+      if (list.checked[item]) docs['checks/' + hash(item)] = { item };
     }
     for (const r of state.recipes) docs['recipes/' + r.id] = r;
     return docs;
   }
 
-  /** { ruta: cuerpo } -> estado de la app */
+  /** { ruta: cuerpo } -> estado de la app (entiende también el formato por semanas). */
   function fromDocs(docs) {
     const meta = docs['meta/settings'] || {};
     const state = migrate({ settings: meta.settings, ingredientShop: meta.ingredientShop });
-    const week = (k) => (state.weeks[k] = state.weeks[k] || { slots: {}, extras: [], checked: {} });
+    const now = currentWeek();
     const clone = (o) => JSON.parse(JSON.stringify(o));
     for (const path of Object.keys(docs).sort()) {
       const body = docs[path];
@@ -137,21 +160,21 @@
       const col = path.slice(0, i);
       const id = path.slice(i + 1);
       if (col === 'weeks') {
-        const w = week(id);
-        w.slots = clone(body.slots || {});
-        // Formato antiguo: lista y tachados dentro de la semana.
-        for (const ex of body.extras || []) if (!w.extras.some((x) => x.id === ex.id)) w.extras.push(clone(ex));
-        Object.assign(w.checked, body.checked || {});
+        state.weeks[id] = { slots: clone(body.slots || {}), extras: clone(body.extras || []), checked: clone(body.checked || {}) };
       } else if (col === 'extras') {
-        const w = week(body.week);
-        if (!w.extras.some((x) => x.id === id)) w.extras.push({ id, name: body.name, qty: body.qty || '', supermarket: body.supermarket || '' });
+        if (!state.list.extras.some((x) => x.id === id)) {
+          state.list.extras.push({ id, name: body.name, qty: body.qty || '', supermarket: body.supermarket || '', from: body.from || null });
+        }
       } else if (col === 'checks') {
-        week(body.week).checked[body.item] = true;
+        // Formato antiguo: tachados por semana; los de semanas pasadas ya no valen.
+        if (body.week && body.week < now) continue;
+        state.list.checked[body.item] = true;
       } else if (col === 'recipes') {
         state.recipes.push(clone({ ...body, id }));
       }
     }
-    for (const w of Object.values(state.weeks)) w.extras.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    moveWeekListsToGeneral(state);
+    state.list.extras.sort((a, b) => String(a.id).localeCompare(String(b.id)));
     state.recipes.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
     return state;
   }

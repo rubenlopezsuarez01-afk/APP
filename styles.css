@@ -54,6 +54,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   font-family: var(--body);
@@ -135,6 +136,25 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Sugerencias al escribir */
+.suggest {
+  display: flex; flex-direction: column; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.suggest-item {
+  text-align: left; background: none; border: 0; border-top: 1px solid var(--border);
+  padding: 11px 12px; cursor: pointer; font-size: 1rem; color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.suggest-item:first-child { border-top: 0; }
+.suggest-item:hover, .suggest-item:focus-visible { background: var(--have); }
+
+/* Para más adelante */
+.upcoming { border-style: dashed; }
+.upcoming p { margin: 0 0 4px; }
+.upcoming li { gap: 6px; padding: 6px 0; }
+.upcoming-text { flex: 1; min-width: 0; }
+
 /* Compartir */
 .sync-status {
   font-size: .75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px;
@@ -201,12 +221,19 @@ dialog {
 }
 dialog[open] { display: flex; }
 dialog::backdrop { background: rgb(0 0 0 / .45); }
+dialog.dialog-fallback {
+  position: fixed; inset: 0; margin: auto; z-index: 50; height: fit-content;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / .45);
+}
+dialog.confirm.dialog-fallback { z-index: 60; }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
 }
 .modal-head h2 { font-size: 1.1rem; }
-.modal-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
+.modal-head, .modal-foot { flex-shrink: 0; }
+/* flex-basis auto: con "flex: 1" Safari deja el cuerpo a 0 px de alto y solo se ven cabecera y botones. */
+.modal-body { padding: 12px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
 .modal-foot {
   display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap;
 }
@@ -217,11 +244,15 @@ dialog::backdrop { background: rgb(0 0 0 / .45); }
   display: grid; grid-template-columns: auto 1fr 80px 130px auto; gap: 6px; align-items: center;
   padding: 4px; border-radius: 8px;
 }
-dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1fr 80px 130px auto; }
+.ing-row.no-have { grid-template-columns: 1fr 80px 130px auto; }
 .ing-row.have { background: var(--have); }
 .ing-row.have .ing-name { text-decoration: line-through; color: var(--muted); }
-.have-toggle { display: flex; flex-direction: column; align-items: center; font-size: .65rem; color: var(--muted); cursor: pointer; }
-.have-toggle input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.have-toggle {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 44px; min-height: 44px; font-size: .7rem; color: var(--muted); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.have-toggle input { width: 24px; height: 24px; margin: 0; accent-color: var(--primary); }
 .meal-summary { background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 12px 0; }
 .meal-summary h3 { margin-top: 0; }
 .sum-group { font-size: .9rem; margin: 2px 0; }
@@ -232,9 +263,9 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
   .ing-row { grid-template-columns: auto 1fr 70px auto; }
   .ing-row .shop-select { grid-column: 2 / 4; }
   .ing-row > .icon-btn { grid-row: 1; grid-column: 4; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1fr 70px auto; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) .shop-select { grid-column: 1 / 3; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) > .icon-btn { grid-column: 3; }
+  .ing-row.no-have { grid-template-columns: 1fr 70px auto; }
+  .ing-row.no-have .shop-select { grid-column: 1 / 3; }
+  .ing-row.no-have > .icon-btn { grid-column: 3; }
 }
 
 /* Sugerencias */
@@ -254,10 +285,13 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
 
 /* Lista de la compra */
 .list-view { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
-.add-form { display: grid; grid-template-columns: 1fr 80px 140px auto; gap: 6px; }
+.add-form { display: grid; grid-template-columns: 1fr 80px 140px 170px auto; gap: 6px; }
+.add-form .suggest, .add-form input[type=date] { grid-column: 1 / -1; }
+.add-form input[type=date] { min-height: 40px; }
 @media (max-width: 560px) {
   .add-form { grid-template-columns: 1fr 80px; }
-  .add-form select { grid-column: 1; }
+  .add-form select { grid-column: 1 / -1; }
+  .add-form button[type=submit] { grid-column: 1 / -1; }
 }
 .list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .list-toolbar .search { flex: 1; margin: 0; min-width: 180px; }

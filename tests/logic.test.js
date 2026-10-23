@@ -123,3 +123,47 @@ test('foodKey agrupa variantes del mismo alimento', () => {
   assert.strictEqual(L.foodKey('Carne picada de ternera'), 'ternera');
   assert.deepStrictEqual([...L.mainIngredients([{ name: 'Cebolla morada' }, { name: 'Salmón fresco' }])], ['salmon']);
 });
+
+test('lista general: comidas de hoy en adelante, a mano y para más adelante', () => {
+  const weeks = {
+    '2026-10-12': { slots: { '0|Comida': { name: 'Pasada', ingredients: [ing('Arroz', { supermarket: 'Lidl' })] } } },
+    '2026-10-19': {
+      slots: {
+        '5|Comida': { name: 'Lentejas', ingredients: [ing('Lentejas', { qty: '400 g', supermarket: 'Lidl' })] },
+        '6|Cena': { name: 'Tortilla', ingredients: [ing('Huevos', { supermarket: 'Lidl' })] }
+      }
+    },
+    '2026-11-02': { slots: { '1|Cena': { name: 'Lentejas otra vez', ingredients: [ing('lentejas', { qty: '200 g', supermarket: 'Lidl' })] } } }
+  };
+  const list = {
+    extras: [
+      { id: 'e1', name: 'Papel de cocina', qty: '', supermarket: 'Mercadona', from: null },
+      { id: 'e2', name: 'Carne barbacoa', qty: '2 kg', supermarket: '', from: '2026-11-06' },
+      { id: 'e3', name: 'Carbón', qty: '', supermarket: '', from: '2026-10-23' }
+    ],
+    checked: { 'Lidl::huevo': true }
+  };
+  const { groups, upcoming } = L.buildGeneralList(weeks, list, '2026-10-23', ['Comida', 'Cena']);
+  const names = groups.flatMap((g) => g.items.map((i) => i.name));
+  assert.ok(!names.includes('Arroz'), 'las comidas pasadas no cuentan');
+  const lent = groups.find((g) => g.supermarket === 'Lidl').items.find((i) => i.name === 'Lentejas');
+  assert.strictEqual(lent.qty, '600 g', 'junta varias semanas');
+  assert.ok(names.includes('Papel de cocina'));
+  assert.ok(names.includes('Carbón'), 'lo programado para hoy ya sale');
+  assert.ok(!names.includes('Carne barbacoa'));
+  assert.deepStrictEqual(upcoming.map((u) => u.name), ['Carne barbacoa']);
+  assert.ok(groups.find((g) => g.supermarket === 'Lidl').items.find((i) => i.name === 'Huevos').checked);
+});
+
+test('quitar comprados marca los ingredientes como "tengo" y borra lo añadido a mano', () => {
+  const weeks = { '2026-10-19': { slots: { '4|Cena': { name: 'Tortilla', ingredients: [ing('Huevos', { supermarket: 'Lidl' }), ing('Patata', { supermarket: 'Lidl' })] } } } };
+  const list = { extras: [{ id: 'e1', name: 'Pan', qty: '', supermarket: 'Lidl', from: null }], checked: { 'Lidl::huevo': true, 'Lidl::pan': true } };
+  const { groups } = L.buildGeneralList(weeks, list, '2026-10-23', []);
+  assert.strictEqual(L.clearBought(weeks, list, groups), 2);
+  const ings = weeks['2026-10-19'].slots['4|Cena'].ingredients;
+  assert.deepStrictEqual(ings.map((i) => i.have), [true, false]);
+  assert.deepStrictEqual(list.extras, []);
+  assert.deepStrictEqual(list.checked, {});
+  const after = L.buildGeneralList(weeks, list, '2026-10-23', []).groups.flatMap((g) => g.items.map((i) => i.name));
+  assert.deepStrictEqual(after, ['Patata']);
+});

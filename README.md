@@ -6,7 +6,8 @@ App web (instalable en el móvil y usable sin conexión) para organizar las comi
 
 - **Planning semanal**: cada día tiene sus comidas (por defecto *Comida* y *Cena*; se cambian en Ajustes). Puedes moverte entre semanas.
 - **Lista de la compra por comida**: al añadir una comida escribes sus ingredientes, marcas **"Tengo"** lo que ya hay en casa y eliges el **supermercado** de cada uno. La tarjeta del día muestra lo que falta con el súper al lado.
-- **Lista de la compra general**: une todo lo que falta de la semana, **agrupado por supermercado**, suma cantidades iguales (`300 g` + `500 g` → `800 g`) e indica para qué comida es cada cosa. Puedes **añadir artículos a mano**, tacharlos al comprar y compartir/copiar la lista (p. ej. por WhatsApp).
+- **Lista de la compra general**: una sola lista con todo lo que falta para las comidas planificadas **de hoy en adelante** (de todas las semanas), **agrupado por supermercado**. Suma cantidades iguales (`300 g` + `500 g` → `800 g`) e indica para qué comida es cada cosa. Puedes **añadir artículos a mano**, tacharlos al comprar y pulsar **Quitar comprados** (los ingredientes de comidas pasan a "Tengo"). También puedes compartir o copiar la lista, por ejemplo por WhatsApp.
+- **Para más adelante**: al añadir algo a mano puedes elegir cuándo lo necesitas (dentro de 1, 2 o 3 semanas o una fecha). No sale en la lista hasta ese día; mientras tanto aparece en la sección *Para más adelante*.
 - **💡 Ideas** para cuando no sabes qué comer:
   - **De tu historial**: platos que ya has comido otras semanas, primero los que hace más tiempo que no comes.
   - **Recetas nuevas**: de tus recetas sin probar y de un recetario incluido (~35 recetas).

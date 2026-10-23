@@ -58,6 +58,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   font-family: var(--body);
@@ -139,6 +140,25 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Sugerencias al escribir */
+.suggest {
+  display: flex; flex-direction: column; margin-top: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+}
+.suggest-item {
+  text-align: left; background: none; border: 0; border-top: 1px solid var(--border);
+  padding: 11px 12px; cursor: pointer; font-size: 1rem; color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.suggest-item:first-child { border-top: 0; }
+.suggest-item:hover, .suggest-item:focus-visible { background: var(--have); }
+
+/* Para más adelante */
+.upcoming { border-style: dashed; }
+.upcoming p { margin: 0 0 4px; }
+.upcoming li { gap: 6px; padding: 6px 0; }
+.upcoming-text { flex: 1; min-width: 0; }
+
 /* Compartir */
 .sync-status {
   font-size: .75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px;
@@ -205,12 +225,19 @@ dialog {
 }
 dialog[open] { display: flex; }
 dialog::backdrop { background: rgb(0 0 0 / .45); }
+dialog.dialog-fallback {
+  position: fixed; inset: 0; margin: auto; z-index: 50; height: fit-content;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / .45);
+}
+dialog.confirm.dialog-fallback { z-index: 60; }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 14px 16px; border-bottom: 1px solid var(--border);
 }
 .modal-head h2 { font-size: 1.1rem; }
-.modal-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
+.modal-head, .modal-foot { flex-shrink: 0; }
+/* flex-basis auto: con "flex: 1" Safari deja el cuerpo a 0 px de alto y solo se ven cabecera y botones. */
+.modal-body { padding: 12px 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
 .modal-foot {
   display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap;
 }
@@ -221,11 +248,15 @@ dialog::backdrop { background: rgb(0 0 0 / .45); }
   display: grid; grid-template-columns: auto 1fr 80px 130px auto; gap: 6px; align-items: center;
   padding: 4px; border-radius: 8px;
 }
-dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1fr 80px 130px auto; }
+.ing-row.no-have { grid-template-columns: 1fr 80px 130px auto; }
 .ing-row.have { background: var(--have); }
 .ing-row.have .ing-name { text-decoration: line-through; color: var(--muted); }
-.have-toggle { display: flex; flex-direction: column; align-items: center; font-size: .65rem; color: var(--muted); cursor: pointer; }
-.have-toggle input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.have-toggle {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 44px; min-height: 44px; font-size: .7rem; color: var(--muted); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.have-toggle input { width: 24px; height: 24px; margin: 0; accent-color: var(--primary); }
 .meal-summary { background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 12px 0; }
 .meal-summary h3 { margin-top: 0; }
 .sum-group { font-size: .9rem; margin: 2px 0; }
@@ -236,9 +267,9 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
   .ing-row { grid-template-columns: auto 1fr 70px auto; }
   .ing-row .shop-select { grid-column: 2 / 4; }
   .ing-row > .icon-btn { grid-row: 1; grid-column: 4; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1fr 70px auto; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) .shop-select { grid-column: 1 / 3; }
-  dialog .meal-editor .ing-row:not(:has(.have-toggle)) > .icon-btn { grid-column: 3; }
+  .ing-row.no-have { grid-template-columns: 1fr 70px auto; }
+  .ing-row.no-have .shop-select { grid-column: 1 / 3; }
+  .ing-row.no-have > .icon-btn { grid-column: 3; }
 }
 
 /* Sugerencias */
@@ -258,10 +289,13 @@ dialog .meal-editor .ing-row:not(:has(.have-toggle)) { grid-template-columns: 1f
 
 /* Lista de la compra */
 .list-view { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
-.add-form { display: grid; grid-template-columns: 1fr 80px 140px auto; gap: 6px; }
+.add-form { display: grid; grid-template-columns: 1fr 80px 140px 170px auto; gap: 6px; }
+.add-form .suggest, .add-form input[type=date] { grid-column: 1 / -1; }
+.add-form input[type=date] { min-height: 40px; }
 @media (max-width: 560px) {
   .add-form { grid-template-columns: 1fr 80px; }
-  .add-form select { grid-column: 1; }
+  .add-form select { grid-column: 1 / -1; }
+  .add-form button[type=submit] { grid-column: 1 / -1; }
 }
 .list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .list-toolbar .search { flex: 1; margin: 0; min-width: 180px; }
@@ -510,6 +544,100 @@ dialog.confirm[open] { display: block; }
     return result;
   }
 
+  /**
+   * Lista de la compra general: lo que falta de las comidas de hoy en adelante
+   * más lo añadido a mano. Lo añadido "para más adelante" (from > hoy) no sale
+   * en la lista hasta esa fecha; se devuelve aparte en `upcoming`.
+   */
+  function buildGeneralList(weeks, list, todayISO, mealsOrder) {
+    const items = new Map();
+    const order = mealsOrder || [];
+    const entries = [];
+    for (const [wk, week] of Object.entries(weeks || {})) {
+      for (const [key, meal] of Object.entries((week && week.slots) || {})) {
+        const { dayIndex, meal: mealName } = parseSlotKey(key);
+        const date = addDays(wk, dayIndex);
+        if (date < todayISO) continue;
+        entries.push({ wk, key, meal, date, mealName, dayIndex });
+      }
+    }
+    entries.sort((a, b) => a.date.localeCompare(b.date) || order.indexOf(a.mealName) - order.indexOf(b.mealName));
+
+    for (const { wk, key, meal, date, mealName, dayIndex } of entries) {
+      for (const ing of missingForMeal(meal)) {
+        const supermarket = ing.supermarket || NO_SUPERMARKET;
+        const id = `${supermarket}::${normalize(ing.name)}`;
+        const label = `${DAYS[dayIndex].slice(0, 3)} ${Number(date.slice(8))} · ${mealName.toLowerCase()}`;
+        const ref = { week: wk, key, name: normalize(ing.name) };
+        if (!items.has(id)) {
+          items.set(id, { id, name: ing.name.trim(), qty: ing.qty || '', supermarket, sources: [{ label, meal: meal.name }], refs: [ref], manual: false });
+        } else {
+          const it = items.get(id);
+          it.qty = mergeQty(it.qty, ing.qty);
+          it.sources.push({ label, meal: meal.name });
+          it.refs.push(ref);
+        }
+      }
+    }
+
+    const upcoming = [];
+    for (const ex of (list && list.extras) || []) {
+      if (ex.from && ex.from > todayISO) { upcoming.push(ex); continue; }
+      const supermarket = ex.supermarket || NO_SUPERMARKET;
+      const id = `${supermarket}::${normalize(ex.name)}`;
+      const it = items.get(id);
+      if (it) {
+        it.qty = mergeQty(it.qty, ex.qty);
+        it.extraIds = (it.extraIds || []).concat(ex.id);
+        it.sources.push({ label: 'Añadido a mano' });
+      } else {
+        items.set(id, { id, name: ex.name.trim(), qty: ex.qty || '', supermarket, sources: [{ label: 'Añadido a mano' }], refs: [], manual: true, extraIds: [ex.id] });
+      }
+    }
+    upcoming.sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name, 'es'));
+
+    const checked = (list && list.checked) || {};
+    const groups = new Map();
+    for (const it of items.values()) {
+      it.checked = !!checked[it.id];
+      if (!groups.has(it.supermarket)) groups.set(it.supermarket, []);
+      groups.get(it.supermarket).push(it);
+    }
+    const result = [];
+    for (const [supermarket, list2] of groups) {
+      list2.sort((a, b) => Number(a.checked) - Number(b.checked) || a.name.localeCompare(b.name, 'es'));
+      result.push({ supermarket, items: list2 });
+    }
+    result.sort((a, b) => {
+      if (a.supermarket === NO_SUPERMARKET) return 1;
+      if (b.supermarket === NO_SUPERMARKET) return -1;
+      return a.supermarket.localeCompare(b.supermarket, 'es');
+    });
+    return { groups: result, upcoming };
+  }
+
+  /**
+   * Al quitar lo comprado: los ingredientes de comidas pasan a "lo tengo" y lo
+   * añadido a mano se borra. Modifica `weeks` y `list`; devuelve cuántos quitó.
+   */
+  function clearBought(weeks, list, groups) {
+    let n = 0;
+    for (const g of groups) {
+      for (const it of g.items) {
+        if (!it.checked) continue;
+        n++;
+        for (const ref of it.refs || []) {
+          const meal = weeks[ref.week] && weeks[ref.week].slots[ref.key];
+          if (!meal) continue;
+          for (const ing of meal.ingredients) if (normalize(ing.name) === ref.name) ing.have = true;
+        }
+        if (it.extraIds) list.extras = list.extras.filter((x) => !it.extraIds.includes(x.id));
+      }
+    }
+    list.checked = {};
+    return n;
+  }
+
   // ---- Sugerencias ----
   // Palabras que indican una pieza o envase: "Pechuga de pollo" -> pollo.
   const CUTS = new Set(['pechuga', 'muslo', 'contramuslo', 'filete', 'lomo', 'solomillo', 'carne picada',
@@ -661,7 +789,7 @@ dialog.confirm[open] { display: block; }
 
   const api = {
     DAYS, NO_SUPERMARKET, STAPLES, normalize, isStaple, toISO, fromISO, weekStart, addDays,
-    daysBetween, slotKey, parseSlotKey, missingForMeal, mergeQty, buildShoppingList,
+    daysBetween, slotKey, parseSlotKey, missingForMeal, mergeQty, buildShoppingList, buildGeneralList, clearBought,
     foodKey, mainIngredients, weekMainIngredients, buildHistory, suggest, shoppingListText
   };
 
@@ -738,7 +866,7 @@ dialog.confirm[open] { display: block; }
   // la app arrancaría vacía tras una actualización.
   const KEY = 'planificador-comidas-v1';
   const META_KEY = 'planificador-comidas-meta';
-  const DATA_VERSION = 1;
+  const DATA_VERSION = 2;
   const { STAPLES } = root.Logic;
 
   function defaults() {
@@ -752,6 +880,7 @@ dialog.confirm[open] { display: block; }
       },
       recipes: [],
       weeks: {},
+      list: { extras: [], checked: {} }, // lista de la compra general
       ingredientShop: {}
     };
   }
@@ -765,15 +894,41 @@ dialog.confirm[open] { display: block; }
       settings: { ...base.settings, ...(data.settings || {}) },
       recipes: Array.isArray(data.recipes) ? data.recipes : [],
       weeks: data.weeks || {},
+      list: {
+        extras: (data.list && Array.isArray(data.list.extras)) ? data.list.extras : [],
+        checked: (data.list && data.list.checked) || {}
+      },
       ingredientShop: data.ingredientShop || {},
       version: DATA_VERSION
     };
   }
 
-  // Aquí irán las conversiones si algún día cambia la forma de los datos:
-  // if (data.version < 2) { ...convertir... }
+  function currentWeek() {
+    return root.Logic.weekStart(new Date());
+  }
+
+  /**
+   * v1 -> v2: la lista de la compra era por semanas (weeks[k].extras/checked).
+   * Ahora es una sola: se juntan los artículos añadidos a mano y se conservan
+   * los tachados de esta semana en adelante.
+   */
+  function moveWeekListsToGeneral(state) {
+    const now = currentWeek();
+    for (const [k, w] of Object.entries(state.weeks)) {
+      for (const ex of w.extras || []) {
+        if (!state.list.extras.some((x) => x.id === ex.id)) state.list.extras.push({ ...ex, from: ex.from || null });
+      }
+      if (k >= now) Object.assign(state.list.checked, w.checked || {});
+      delete w.extras;
+      delete w.checked;
+    }
+    return state;
+  }
+
+  // Conversiones cuando cambia la forma de los datos.
   function upgrade(data) {
-    return migrate(data);
+    const state = migrate(data);
+    return moveWeekListsToGeneral(state);
   }
 
   // ---------- localStorage ----------
@@ -823,41 +978,37 @@ dialog.confirm[open] { display: block; }
   }
 
   const COLLECTIONS = ['weeks', 'recipes', 'extras', 'checks'];
-  // Los artículos añadidos a mano y los tachados de semanas antiguas se borran del servidor.
-  const KEEP_LIST_WEEKS = 8;
 
   /**
    * Estado de la app -> { ruta: cuerpo }. Cada cosa que se suele tocar a la vez
    * desde dos móviles va en su propio documento, para que no se pisen:
-   *   meta/settings            ajustes y supermercado de cada ingrediente
-   *   weeks/<lunes>            { slots } comidas de la semana
-   *   extras/<id>              artículo añadido a mano a la lista
-   *   checks/<lunes>~<hash>    artículo tachado en la lista
-   *   recipes/<id>             receta
+   *   meta/settings      ajustes y supermercado de cada ingrediente
+   *   weeks/<lunes>      { slots } comidas de la semana
+   *   extras/<id>        artículo añadido a mano a la lista ({ from } = desde qué día sale)
+   *   checks/<hash>      artículo tachado en la lista
+   *   recipes/<id>       receta
    */
-  function toDocs(state, todayISO) {
-    const L = root.Logic;
-    const cutoff = L.addDays(L.weekStart(todayISO ? L.fromISO(todayISO) : new Date()), -7 * KEEP_LIST_WEEKS);
+  function toDocs(state) {
     const docs = { 'meta/settings': { settings: state.settings, ingredientShop: state.ingredientShop } };
     for (const [k, w] of Object.entries(state.weeks)) {
       if (Object.keys(w.slots || {}).length) docs['weeks/' + k] = { slots: w.slots };
-      if (k < cutoff) continue;
-      for (const ex of w.extras || []) {
-        docs['extras/' + ex.id] = { week: k, name: ex.name, qty: ex.qty || '', supermarket: ex.supermarket || '' };
-      }
-      for (const item of Object.keys(w.checked || {})) {
-        if (w.checked[item]) docs['checks/' + k + '~' + hash(item)] = { week: k, item };
-      }
+    }
+    const list = state.list || { extras: [], checked: {} };
+    for (const ex of list.extras) {
+      docs['extras/' + ex.id] = { name: ex.name, qty: ex.qty || '', supermarket: ex.supermarket || '', from: ex.from || null };
+    }
+    for (const item of Object.keys(list.checked)) {
+      if (list.checked[item]) docs['checks/' + hash(item)] = { item };
     }
     for (const r of state.recipes) docs['recipes/' + r.id] = r;
     return docs;
   }
 
-  /** { ruta: cuerpo } -> estado de la app */
+  /** { ruta: cuerpo } -> estado de la app (entiende también el formato por semanas). */
   function fromDocs(docs) {
     const meta = docs['meta/settings'] || {};
     const state = migrate({ settings: meta.settings, ingredientShop: meta.ingredientShop });
-    const week = (k) => (state.weeks[k] = state.weeks[k] || { slots: {}, extras: [], checked: {} });
+    const now = currentWeek();
     const clone = (o) => JSON.parse(JSON.stringify(o));
     for (const path of Object.keys(docs).sort()) {
       const body = docs[path];
@@ -865,21 +1016,21 @@ dialog.confirm[open] { display: block; }
       const col = path.slice(0, i);
       const id = path.slice(i + 1);
       if (col === 'weeks') {
-        const w = week(id);
-        w.slots = clone(body.slots || {});
-        // Formato antiguo: lista y tachados dentro de la semana.
-        for (const ex of body.extras || []) if (!w.extras.some((x) => x.id === ex.id)) w.extras.push(clone(ex));
-        Object.assign(w.checked, body.checked || {});
+        state.weeks[id] = { slots: clone(body.slots || {}), extras: clone(body.extras || []), checked: clone(body.checked || {}) };
       } else if (col === 'extras') {
-        const w = week(body.week);
-        if (!w.extras.some((x) => x.id === id)) w.extras.push({ id, name: body.name, qty: body.qty || '', supermarket: body.supermarket || '' });
+        if (!state.list.extras.some((x) => x.id === id)) {
+          state.list.extras.push({ id, name: body.name, qty: body.qty || '', supermarket: body.supermarket || '', from: body.from || null });
+        }
       } else if (col === 'checks') {
-        week(body.week).checked[body.item] = true;
+        // Formato antiguo: tachados por semana; los de semanas pasadas ya no valen.
+        if (body.week && body.week < now) continue;
+        state.list.checked[body.item] = true;
       } else if (col === 'recipes') {
         state.recipes.push(clone({ ...body, id }));
       }
     }
-    for (const w of Object.values(state.weeks)) w.extras.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    moveWeekListsToGeneral(state);
+    state.list.extras.sort((a, b) => String(a.id).localeCompare(String(b.id)));
     state.recipes.sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
     return state;
   }
@@ -1098,12 +1249,16 @@ dialog.confirm[open] { display: block; }
   const persist = () => Store.save(state);
 
   function getWeek(key) {
-    if (!state.weeks[key]) state.weeks[key] = { slots: {}, extras: [], checked: {} };
+    if (!state.weeks[key]) state.weeks[key] = { slots: {} };
     const w = state.weeks[key];
     w.slots = w.slots || {};
-    w.extras = w.extras || [];
-    w.checked = w.checked || {};
     return w;
+  }
+
+  const todayISO = () => L.toISO(new Date());
+
+  function generalList() {
+    return L.buildGeneralList(state.weeks, state.list, todayISO(), state.settings.meals);
   }
 
   function pantrySet() {
@@ -1159,8 +1314,54 @@ dialog.confirm[open] { display: block; }
     return h('select', { class: 'shop-select', onchange: (e) => onchange(e.target.value), 'aria-label': 'Supermercado' }, options);
   }
 
+  /**
+   * Sugerencias bajo un campo de texto mientras se escribe. Sustituye a
+   * <datalist>, que en Safari (sobre todo en iPhone) apenas se ve o no se abre.
+   * Devuelve el elemento de la lista, que hay que colocar justo después del campo.
+   */
+  function autocomplete(input, getOptions, onPick, max) {
+    const box = h('div', { class: 'suggest', role: 'listbox', hidden: true });
+    let hideTimer = null;
+    function show() {
+      clearTimeout(hideTimer);
+      const q = L.normalize(input.value);
+      if (!q) { box.hidden = true; return; }
+      const starts = [];
+      const contains = [];
+      for (const opt of getOptions()) {
+        const n = L.normalize(opt);
+        if (n === q) continue;
+        if (n.startsWith(q)) starts.push(opt);
+        else if (n.includes(q)) contains.push(opt);
+      }
+      const matches = starts.sort((a, b) => a.localeCompare(b, 'es')).concat(contains.sort((a, b) => a.localeCompare(b, 'es'))).slice(0, max || 6);
+      box.replaceChildren(...matches.map((opt) => h('button', {
+        type: 'button', class: 'suggest-item', role: 'option',
+        // pointerdown: elegir antes de que el campo pierda el foco (en iPhone el blur llega antes que el click)
+        onpointerdown: (e) => { e.preventDefault(); },
+        onclick: () => { box.hidden = true; onPick(opt); }
+      }, opt)));
+      box.hidden = !matches.length;
+    }
+    input.addEventListener('input', show);
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', () => { hideTimer = setTimeout(() => { box.hidden = true; }, 200); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') box.hidden = true; });
+    return box;
+  }
+
   // ---------- modal ----------
   const dialog = document.getElementById('modal');
+  // Safari anterior a iOS 15.4 no tiene <dialog>: se muestra igual con una clase.
+  const isOpen = (d) => d.hasAttribute('open');
+  function showDialog(d) {
+    if (typeof d.showModal === 'function') d.showModal();
+    else { d.setAttribute('open', ''); d.classList.add('dialog-fallback'); }
+  }
+  function hideDialog(d) {
+    if (typeof d.close === 'function') d.close();
+    else { d.removeAttribute('open'); d.dispatchEvent(new Event('close')); }
+  }
   function openModal(title, body, footer) {
     dialog.replaceChildren(...[
       h('div', { class: 'modal-head' },
@@ -1169,10 +1370,10 @@ dialog.confirm[open] { display: block; }
       h('div', { class: 'modal-body' }, body),
       footer ? h('div', { class: 'modal-foot' }, footer) : null
     ].filter(Boolean));
-    if (!dialog.open) dialog.showModal();
+    if (!isOpen(dialog)) showDialog(dialog);
   }
   function closeModal() {
-    if (dialog.open) dialog.close();
+    if (isOpen(dialog)) hideDialog(dialog);
     if (pendingRemote) { const next = pendingRemote; pendingRemote = null; applyRemote(next); }
   }
   dialog.addEventListener('close', () => {
@@ -1183,14 +1384,14 @@ dialog.confirm[open] { display: block; }
   const confirmDialog = document.getElementById('confirm');
   function ask(message, okLabel, danger) {
     return new Promise((resolve) => {
-      const done = (v) => { confirmDialog.close(); resolve(v); };
+      const done = (v) => { hideDialog(confirmDialog); resolve(v); };
       confirmDialog.replaceChildren(
         h('p', { class: 'confirm-msg' }, message),
         h('div', { class: 'confirm-actions' },
           h('button', { class: 'btn', onclick: () => done(false) }, 'Cancelar'),
           h('button', { class: 'btn ' + (danger ? 'danger-solid' : 'primary'), onclick: () => done(true) }, okLabel || 'Aceptar')));
       confirmDialog.oncancel = (e) => { e.preventDefault(); done(false); };
-      confirmDialog.showModal();
+      showDialog(confirmDialog);
       confirmDialog.querySelector('.confirm-actions .btn:last-child').focus();
     });
   }
@@ -1199,7 +1400,7 @@ dialog.confirm[open] { display: block; }
   let pendingRemote = null;
   let syncMode = 'local';
   function applyRemote(next) {
-    if (dialog.open) { pendingRemote = next; return; }
+    if (isOpen(dialog)) { pendingRemote = next; return; }
     state = next;
     render();
   }
@@ -1209,7 +1410,7 @@ dialog.confirm[open] { display: block; }
   function render() {
     document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
     const weekNav = document.getElementById('week-nav');
-    weekNav.hidden = !(view === 'week' || view === 'list');
+    weekNav.hidden = view !== 'week';
     document.getElementById('week-label').textContent = formatWeek(weekKey);
     document.getElementById('week-today').hidden = weekKey === L.weekStart(new Date());
     const main = document.getElementById('main');
@@ -1219,7 +1420,7 @@ dialog.confirm[open] { display: block; }
   }
 
   function updateBadge() {
-    const groups = L.buildShoppingList(getWeek(weekKey), getWeek(weekKey).extras, getWeek(weekKey).checked, state.settings.meals);
+    const { groups } = generalList();
     const pending = groups.reduce((n, g) => n + g.items.filter((i) => !i.checked).length, 0);
     const badge = document.getElementById('list-badge');
     badge.textContent = pending;
@@ -1307,24 +1508,32 @@ dialog.confirm[open] { display: block; }
     const knownRecipe = () => state.recipes.find((r) => L.normalize(r.name) === L.normalize(draft.name));
     let saveAsRecipe = !knownRecipe();
 
-    const nameInput = h('input', {
-      type: 'text', value: draft.name, placeholder: '¿Qué vas a comer?', list: 'recipe-names', class: 'big-input',
-      oninput: (e) => { draft.name = e.target.value; },
-      onchange: async () => {
-        const rec = knownRecipe() || CATALOG.find((r) => L.normalize(r.name) === L.normalize(draft.name));
-        if (rec && (!draft.ingredients.length || await ask(`¿Cambiar los ingredientes por los de "${rec.name}"?`, 'Cambiar'))) {
-          const m = mealFromRecipe(rec);
-          draft.ingredients = m.ingredients;
-          draft.recipeId = m.recipeId;
-          renderIngredients();
-        }
-        saveCheck.checked = saveAsRecipe = !knownRecipe();
+    // Al elegir un plato conocido se cargan sus ingredientes.
+    let lastLoaded = L.normalize(draft.name);
+    async function applyName() {
+      const n = L.normalize(draft.name);
+      if (n === lastLoaded) return;
+      const rec = knownRecipe() || CATALOG.find((r) => L.normalize(r.name) === n);
+      const past = !rec && L.buildHistory(state.weeks).find((x) => L.normalize(x.name) === n);
+      const source = rec || past;
+      if (source && (!draft.ingredients.length || await ask(`¿Cambiar los ingredientes por los de "${source.name}"?`, 'Cambiar'))) {
+        const m = mealFromRecipe(source);
+        draft.ingredients = m.ingredients;
+        draft.recipeId = rec ? m.recipeId : null;
+        renderIngredients();
       }
-    });
+      lastLoaded = n;
+      saveCheck.checked = saveAsRecipe = !knownRecipe();
+    }
 
-    const datalist = h('datalist', { id: 'recipe-names' },
-      [...new Set([...state.recipes.map((r) => r.name), ...L.buildHistory(state.weeks).map((x) => x.name), ...CATALOG.map((r) => r.name)])]
-        .map((n) => h('option', { value: n })));
+    const nameInput = h('input', {
+      type: 'text', value: draft.name, placeholder: '¿Qué vas a comer?', class: 'big-input', autocomplete: 'off',
+      oninput: (e) => { draft.name = e.target.value; },
+      onchange: () => applyName()
+    });
+    const nameSuggestions = autocomplete(nameInput,
+      () => [...new Set([...state.recipes.map((r) => r.name), ...L.buildHistory(state.weeks).map((x) => x.name), ...CATALOG.map((r) => r.name)])],
+      (v) => { nameInput.value = v; draft.name = v; applyName(); });
 
     const ingList = h('div', { class: 'ing-list' });
     const summary = h('div', { class: 'meal-summary' });
@@ -1351,7 +1560,7 @@ dialog.confirm[open] { display: block; }
             h('input', { type: 'checkbox', checked: ing.have, onchange: (e) => { ing.have = e.target.checked; row.classList.toggle('have', ing.have); renderSummary(); } }),
             h('span', {}, 'Tengo')),
           h('input', {
-            type: 'text', class: 'ing-name', value: ing.name, placeholder: 'Ingrediente',
+            type: 'text', class: 'ing-name', value: ing.name, placeholder: 'Ingrediente', autocomplete: 'off',
             oninput: (e) => { ing.name = e.target.value; renderSummary(); },
             onchange: () => {
               if (!ing.supermarket && shopFor(ing.name)) { ing.supermarket = shopFor(ing.name); renderIngredients(); }
@@ -1371,7 +1580,7 @@ dialog.confirm[open] { display: block; }
 
     const body = h('div', { class: 'meal-editor' },
       h('p', { class: 'muted' }, `${L.DAYS[dayIndex]} · ${mealName}`),
-      nameInput, datalist,
+      nameInput, nameSuggestions,
       h('div', { class: 'section-head' },
         h('h3', {}, 'Ingredientes'),
         h('span', { class: 'muted small' }, 'Marca "Tengo" lo que ya hay en casa')),
@@ -1493,76 +1702,118 @@ dialog.confirm[open] { display: block; }
 
   // ---------- lista de la compra ----------
   function renderList() {
-    const week = getWeek(weekKey);
-    const groups = L.buildShoppingList(week, week.extras, week.checked, state.settings.meals);
+    const { groups, upcoming } = generalList();
+    const list = state.list;
     const wrap = h('div', { class: 'list-view' });
 
-    const nameIn = h('input', { type: 'text', placeholder: 'Añadir algo (ej. papel de cocina)', list: 'ingredient-names', required: true });
-    const qtyIn = h('input', { type: 'text', placeholder: 'Cant.', class: 'qty' });
+    // Añadir algo a mano, ahora o para más adelante.
+    const nameIn = h('input', { type: 'text', id: 'add-name', placeholder: 'Añadir algo (ej. papel de cocina)', autocomplete: 'off', required: true });
+    const qtyIn = h('input', { type: 'text', id: 'add-qty', placeholder: 'Cant.', class: 'qty' });
     let shop = '';
     const shopSel = supermarketSelect('', (v) => { shop = v; });
-    nameIn.addEventListener('change', () => {
+    const pickShop = () => {
       const s = shopFor(nameIn.value);
       if (s) { shop = s; shopSel.value = s; }
-    });
+    };
+    nameIn.addEventListener('change', pickShop);
+    const whenSel = h('select', { id: 'add-when', 'aria-label': 'Cuándo lo necesitas' },
+      h('option', { value: '0' }, 'Lo necesito ya'),
+      h('option', { value: '7' }, 'Dentro de 1 semana'),
+      h('option', { value: '14' }, 'Dentro de 2 semanas'),
+      h('option', { value: '21' }, 'Dentro de 3 semanas'),
+      h('option', { value: 'date' }, 'Elegir fecha…'));
+    const dateIn = h('input', { type: 'date', id: 'add-date', min: L.addDays(todayISO(), 1), hidden: true, 'aria-label': 'Fecha' });
+    const nameSug = autocomplete(nameIn, () => Object.keys(state.ingredientShop), (v) => { nameIn.value = v; pickShop(); qtyIn.focus(); });
+    whenSel.addEventListener('change', () => { dateIn.hidden = whenSel.value !== 'date'; if (!dateIn.hidden && !dateIn.value) dateIn.value = L.addDays(todayISO(), 14); });
+
     wrap.append(h('form', {
       class: 'add-form card', onsubmit: (e) => {
         e.preventDefault();
         const name = nameIn.value.trim();
         if (!name) return;
-        week.extras.push({ id: uid(), name, qty: qtyIn.value.trim(), supermarket: shop });
+        let from = null;
+        if (whenSel.value === 'date') from = dateIn.value || null;
+        else if (whenSel.value !== '0') from = L.addDays(todayISO(), Number(whenSel.value));
+        if (from && from <= todayISO()) from = null;
+        list.extras.push({ id: uid(), name, qty: qtyIn.value.trim(), supermarket: shop, from });
         rememberShop(name, shop);
         persist(); render();
-        toast(`"${name}" añadido`);
+        toast(from ? `"${name}" saldrá en la lista el ${formatDay(from)}` : `"${name}" añadido`);
       }
     },
-    h('datalist', { id: 'ingredient-names' }, Object.keys(state.ingredientShop).map((n) => h('option', { value: n }))),
-    nameIn, qtyIn, shopSel, h('button', { class: 'btn primary', type: 'submit' }, 'Añadir')));
+    nameIn, nameSug, qtyIn, shopSel, whenSel, dateIn, h('button', { class: 'btn primary', type: 'submit' }, 'Añadir')));
 
     if (!groups.length) {
       wrap.append(h('div', { class: 'empty-state' },
         h('p', {}, '🧺 La lista está vacía.'),
-        h('p', { class: 'muted' }, 'Los ingredientes que falten en las comidas de la semana aparecerán aquí, agrupados por supermercado.')));
-      return wrap;
-    }
+        h('p', { class: 'muted' }, 'Aquí aparece lo que falta para las comidas planificadas de hoy en adelante, agrupado por supermercado, y lo que añadas a mano.')));
+    } else {
+      const total = groups.reduce((n, g) => n + g.items.length, 0);
+      const done = groups.reduce((n, g) => n + g.items.filter((i) => i.checked).length, 0);
+      wrap.append(h('div', { class: 'list-toolbar' },
+        h('span', { class: 'muted' }, `${done}/${total} comprados`),
+        h('span', { class: 'spacer' }),
+        h('button', { class: 'btn small ghost', onclick: shareList }, '📤 Compartir'),
+        done ? h('button', {
+          class: 'btn small primary', onclick: () => {
+            const n = L.clearBought(state.weeks, list, groups);
+            persist(); render();
+            toast(n === 1 ? 'Quitado 1 artículo comprado' : `Quitados ${n} artículos comprados`);
+          }
+        }, `Quitar comprados (${done})`) : null));
 
-    const total = groups.reduce((n, g) => n + g.items.length, 0);
-    const done = groups.reduce((n, g) => n + g.items.filter((i) => i.checked).length, 0);
-    wrap.append(h('div', { class: 'list-toolbar' },
-      h('span', { class: 'muted' }, `${done}/${total} comprados`),
-      h('span', { class: 'spacer' }),
-      h('button', { class: 'btn small ghost', onclick: shareList }, '📤 Compartir'),
-      done ? h('button', { class: 'btn small ghost', onclick: () => { week.checked = {}; persist(); render(); } }, 'Desmarcar todo') : null));
-
-    for (const g of groups) {
-      const pending = g.items.filter((i) => !i.checked).length;
-      wrap.append(h('section', { class: 'card shop-group' },
-        h('header', { class: 'shop-head' }, h('h3', {}, g.supermarket), h('span', { class: 'count' }, pending ? `${pending} pendientes` : '✔ completo')),
-        h('ul', { class: 'shop-items' }, g.items.map((it) => h('li', { class: it.checked ? 'checked' : '' },
-          h('label', {},
-            h('input', {
-              type: 'checkbox', checked: it.checked, onchange: (e) => {
-                if (e.target.checked) week.checked[it.id] = true; else delete week.checked[it.id];
+      for (const g of groups) {
+        const pending = g.items.filter((i) => !i.checked).length;
+        wrap.append(h('section', { class: 'card shop-group' },
+          h('header', { class: 'shop-head' }, h('h3', {}, g.supermarket), h('span', { class: 'count' }, pending ? `${pending} pendientes` : '✔ completo')),
+          h('ul', { class: 'shop-items' }, g.items.map((it) => h('li', { class: it.checked ? 'checked' : '' },
+            h('label', {},
+              h('input', {
+                type: 'checkbox', checked: it.checked, onchange: (e) => {
+                  if (e.target.checked) list.checked[it.id] = true; else delete list.checked[it.id];
+                  persist(); render();
+                }
+              }),
+              h('span', { class: 'item-text' },
+                h('span', { class: 'item-name' }, it.name, it.qty ? h('span', { class: 'item-qty' }, ` · ${it.qty}`) : null),
+                h('span', { class: 'item-src' }, it.sources.map((s) => s.meal ? `${s.label}: ${s.meal}` : s.label).join(' · ')))),
+            it.extraIds ? h('button', {
+              class: 'icon-btn', 'aria-label': 'Eliminar', onclick: () => {
+                list.extras = list.extras.filter((x) => !it.extraIds.includes(x.id));
+                delete list.checked[it.id];
                 persist(); render();
               }
-            }),
-            h('span', { class: 'item-text' },
-              h('span', { class: 'item-name' }, it.name, it.qty ? h('span', { class: 'item-qty' }, ` · ${it.qty}`) : null),
-              h('span', { class: 'item-src' }, it.sources.map((s) => s.meal ? `${s.label}: ${s.meal}` : s.label).join(' · ')))),
-          it.extraIds ? h('button', {
+            }, '✕') : null)))));
+      }
+    }
+
+    if (upcoming.length) {
+      wrap.append(h('section', { class: 'card upcoming' },
+        h('header', { class: 'shop-head' }, h('h3', {}, '🗓 Para más adelante'), h('span', { class: 'count' }, `${upcoming.length}`)),
+        h('p', { class: 'muted small' }, 'Aparecerán en la lista el día indicado.'),
+        h('ul', { class: 'shop-items' }, upcoming.map((ex) => h('li', {},
+          h('span', { class: 'item-text upcoming-text' },
+            h('span', { class: 'item-name' }, ex.name, ex.qty ? h('span', { class: 'item-qty' }, ` · ${ex.qty}`) : null),
+            h('span', { class: 'item-src' }, `Desde el ${formatDay(ex.from)}${ex.supermarket ? ' · ' + ex.supermarket : ''}`)),
+          h('button', {
+            class: 'btn small ghost', onclick: () => { ex.from = null; persist(); render(); toast(`"${ex.name}" ya está en la lista`); }
+          }, 'Ya'),
+          h('button', {
             class: 'icon-btn', 'aria-label': 'Eliminar', onclick: () => {
-              week.extras = week.extras.filter((x) => !it.extraIds.includes(x.id));
+              list.extras = list.extras.filter((x) => x.id !== ex.id);
               persist(); render();
             }
-          }, '✕') : null)))));
+          }, '✕'))))));
     }
     return wrap;
   }
 
+  function formatDay(iso) {
+    return L.fromISO(iso).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
   async function shareList() {
-    const week = getWeek(weekKey);
-    const text = `Lista de la compra (${formatWeek(weekKey)})\n\n` +
-      L.shoppingListText(L.buildShoppingList(week, week.extras, week.checked, state.settings.meals));
+    const text = 'Lista de la compra\n\n' + L.shoppingListText(generalList().groups);
     const inFrame = window.top !== window;
     try {
       if (navigator.share && !inFrame) { await navigator.share({ title: 'Lista de la compra', text }); return; }
@@ -1619,7 +1870,7 @@ dialog.confirm[open] { display: block; }
     const draft = recipe ? clone(recipe) : { name: '', ingredients: [], notes: '' };
     const ingList = h('div', { class: 'ing-list' });
     function drawIngs() {
-      ingList.replaceChildren(...draft.ingredients.map((ing, idx) => h('div', { class: 'ing-row' },
+      ingList.replaceChildren(...draft.ingredients.map((ing, idx) => h('div', { class: 'ing-row no-have' },
         h('input', { type: 'text', class: 'ing-name', value: ing.name, placeholder: 'Ingrediente', oninput: (e) => { ing.name = e.target.value; }, onchange: () => { if (!ing.supermarket && shopFor(ing.name)) { ing.supermarket = shopFor(ing.name); drawIngs(); } } }),
         h('input', { type: 'text', class: 'ing-qty', value: ing.qty, placeholder: 'Cant.', oninput: (e) => { ing.qty = e.target.value; } }),
         supermarketSelect(ing.supermarket, (v) => { ing.supermarket = v; }),

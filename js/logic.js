@@ -177,6 +177,100 @@
     return result;
   }
 
+  /**
+   * Lista de la compra general: lo que falta de las comidas de hoy en adelante
+   * más lo añadido a mano. Lo añadido "para más adelante" (from > hoy) no sale
+   * en la lista hasta esa fecha; se devuelve aparte en `upcoming`.
+   */
+  function buildGeneralList(weeks, list, todayISO, mealsOrder) {
+    const items = new Map();
+    const order = mealsOrder || [];
+    const entries = [];
+    for (const [wk, week] of Object.entries(weeks || {})) {
+      for (const [key, meal] of Object.entries((week && week.slots) || {})) {
+        const { dayIndex, meal: mealName } = parseSlotKey(key);
+        const date = addDays(wk, dayIndex);
+        if (date < todayISO) continue;
+        entries.push({ wk, key, meal, date, mealName, dayIndex });
+      }
+    }
+    entries.sort((a, b) => a.date.localeCompare(b.date) || order.indexOf(a.mealName) - order.indexOf(b.mealName));
+
+    for (const { wk, key, meal, date, mealName, dayIndex } of entries) {
+      for (const ing of missingForMeal(meal)) {
+        const supermarket = ing.supermarket || NO_SUPERMARKET;
+        const id = `${supermarket}::${normalize(ing.name)}`;
+        const label = `${DAYS[dayIndex].slice(0, 3)} ${Number(date.slice(8))} · ${mealName.toLowerCase()}`;
+        const ref = { week: wk, key, name: normalize(ing.name) };
+        if (!items.has(id)) {
+          items.set(id, { id, name: ing.name.trim(), qty: ing.qty || '', supermarket, sources: [{ label, meal: meal.name }], refs: [ref], manual: false });
+        } else {
+          const it = items.get(id);
+          it.qty = mergeQty(it.qty, ing.qty);
+          it.sources.push({ label, meal: meal.name });
+          it.refs.push(ref);
+        }
+      }
+    }
+
+    const upcoming = [];
+    for (const ex of (list && list.extras) || []) {
+      if (ex.from && ex.from > todayISO) { upcoming.push(ex); continue; }
+      const supermarket = ex.supermarket || NO_SUPERMARKET;
+      const id = `${supermarket}::${normalize(ex.name)}`;
+      const it = items.get(id);
+      if (it) {
+        it.qty = mergeQty(it.qty, ex.qty);
+        it.extraIds = (it.extraIds || []).concat(ex.id);
+        it.sources.push({ label: 'Añadido a mano' });
+      } else {
+        items.set(id, { id, name: ex.name.trim(), qty: ex.qty || '', supermarket, sources: [{ label: 'Añadido a mano' }], refs: [], manual: true, extraIds: [ex.id] });
+      }
+    }
+    upcoming.sort((a, b) => a.from.localeCompare(b.from) || a.name.localeCompare(b.name, 'es'));
+
+    const checked = (list && list.checked) || {};
+    const groups = new Map();
+    for (const it of items.values()) {
+      it.checked = !!checked[it.id];
+      if (!groups.has(it.supermarket)) groups.set(it.supermarket, []);
+      groups.get(it.supermarket).push(it);
+    }
+    const result = [];
+    for (const [supermarket, list2] of groups) {
+      list2.sort((a, b) => Number(a.checked) - Number(b.checked) || a.name.localeCompare(b.name, 'es'));
+      result.push({ supermarket, items: list2 });
+    }
+    result.sort((a, b) => {
+      if (a.supermarket === NO_SUPERMARKET) return 1;
+      if (b.supermarket === NO_SUPERMARKET) return -1;
+      return a.supermarket.localeCompare(b.supermarket, 'es');
+    });
+    return { groups: result, upcoming };
+  }
+
+  /**
+   * Al quitar lo comprado: los ingredientes de comidas pasan a "lo tengo" y lo
+   * añadido a mano se borra. Modifica `weeks` y `list`; devuelve cuántos quitó.
+   */
+  function clearBought(weeks, list, groups) {
+    let n = 0;
+    for (const g of groups) {
+      for (const it of g.items) {
+        if (!it.checked) continue;
+        n++;
+        for (const ref of it.refs || []) {
+          const meal = weeks[ref.week] && weeks[ref.week].slots[ref.key];
+          if (!meal) continue;
+          for (const ing of meal.ingredients) if (normalize(ing.name) === ref.name) ing.have = true;
+        }
+        if (it.extraIds) list.extras = list.extras.filter((x) => !it.extraIds.includes(x.id));
+      }
+    }
+    list.checked = {};
+    return n;
+  }
+
   // ---- Sugerencias ----
   // Palabras que indican una pieza o envase: "Pechuga de pollo" -> pollo.
   const CUTS = new Set(['pechuga', 'muslo', 'contramuslo', 'filete', 'lomo', 'solomillo', 'carne picada',
@@ -328,7 +422,7 @@
 
   const api = {
     DAYS, NO_SUPERMARKET, STAPLES, normalize, isStaple, toISO, fromISO, weekStart, addDays,
-    daysBetween, slotKey, parseSlotKey, missingForMeal, mergeQty, buildShoppingList,
+    daysBetween, slotKey, parseSlotKey, missingForMeal, mergeQty, buildShoppingList, buildGeneralList, clearBought,
     foodKey, mainIngredients, weekMainIngredients, buildHistory, suggest, shoppingListText
   };
 
