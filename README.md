@@ -59,7 +59,7 @@ Dos móviles (o más) pueden usar el mismo planning: lo que uno añade, cambia o
    ```
 
    Estos datos no son secretos (van en la página web de todas formas); lo que protege la información son las reglas del paso 3.
-6. Sube el cambio a GitHub (y sube el número de `CACHE` en `sw.js`).
+6. Sube el cambio a GitHub (y sube el número de `APP_VERSION` en `js/version.js`).
 
 ### 2. Conectar los móviles
 
@@ -74,9 +74,9 @@ Quien tenga el código puede ver y cambiar el planning, así que compártelo sol
 
 **No hace falta desinstalar ni reinstalar la app para actualizarla.** Los datos se guardan en el almacenamiento del navegador ligado a la dirección de la app, y una actualización solo cambia los archivos de la app.
 
-1. Sube los cambios a la rama que publica GitHub Pages.
-2. En `sw.js`, sube el número de `CACHE` (`v2` → `v3`…) para que el móvil descargue los archivos nuevos y borre los viejos.
-3. Abre la app en el móvil con conexión: cargará la versión nueva y verás el aviso "App actualizada. Tus datos siguen aquí". Si no aparece, ciérrala del todo y ábrela otra vez.
+1. Sube el número de `APP_VERSION` en [`js/version.js`](js/version.js) (7 → 8…).
+2. Sube los cambios a la rama que publica GitHub Pages.
+3. En el móvil, la app lo detecta sola al abrirla (o al volver a ella) y muestra **Hay una versión nueva · Actualizar ahora**. También puedes ir a *Ajustes → Versión de la app → Buscar actualización*. Se recarga en un momento y tus datos siguen ahí.
 
 Los datos **sí se pierden** si:
 

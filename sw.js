@@ -1,15 +1,19 @@
 /* Service worker: permite usar la app sin conexión. */
-// Sube este número en cada actualización para que el móvil limpie la caché vieja.
-// Los datos (localStorage) no se tocan: solo se renuevan los archivos de la app.
-const CACHE = 'planificador-comidas-v6';
+// La versión está en js/version.js: al subirla, el móvil renueva la caché.
+// Los datos (localStorage y Firebase) no se tocan: solo se renuevan los archivos de la app.
+importScripts('js/version.js');
+const CACHE = 'planificador-comidas-v' + self.APP_VERSION;
 const ASSETS = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png',
   'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  'js/logic.js', 'js/catalog.js', 'js/store.js', 'js/firebase-config.js', 'js/sync-firebase.js', 'js/app.js'
+  'js/version.js', 'js/logic.js', 'js/catalog.js', 'js/store.js', 'js/firebase-config.js', 'js/sync-firebase.js', 'js/app.js'
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' para guardar los archivos del servidor y no los que tenga el navegador.
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -28,6 +32,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   const firebaseSdk = url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/');
   if (url.origin !== self.location.origin && !firebaseSdk) return;
+  // La comprobación de versión (?t=...) va siempre directa al servidor.
+  if (url.searchParams.has('t')) return;
   if (firebaseSdk) {
     e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
       const copy = res.clone();
@@ -36,13 +42,16 @@ self.addEventListener('fetch', (e) => {
     })));
     return;
   }
+  // no-cache: pregunta siempre al servidor si hay algo nuevo (GitHub Pages deja
+  // los archivos 10 minutos en la caché del navegador y las actualizaciones tardaban).
+  const fresh = new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' });
   e.respondWith(
-    fetch(e.request)
+    fetch(fresh)
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
 });

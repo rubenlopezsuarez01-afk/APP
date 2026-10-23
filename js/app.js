@@ -198,6 +198,8 @@
     const main = document.getElementById('main');
     const renderers = { week: renderWeek, list: renderList, recipes: renderRecipes, settings: renderSettings };
     main.replaceChildren(renderers[view]());
+    const banner = updateBanner();
+    if (banner) main.prepend(banner);
     updateBadge();
   }
 
@@ -719,6 +721,7 @@
     });
 
     return h('div', { class: 'settings-view' },
+      renderUpdateSection(),
       renderShareSection(),
       field('Comidas del día', 'Una por línea (ej. Desayuno, Comida, Cena).', s.meals, (v) => { if (v.length) s.meals = v; }, 3),
       field('Supermercados', 'Uno por línea. Aparecerán al lado de cada ingrediente.', s.supermarkets, (v) => { s.supermarkets = v; }),
@@ -747,6 +750,86 @@
               state = Store.defaults(); persist(); render();
             }
           }, 'Borrar todo'))));
+  }
+
+  // ---------- actualizaciones ----------
+  const canUpdate = 'serviceWorker' in navigator && location.protocol.startsWith('http') && window.top === window;
+  const currentVersion = Number(window.APP_VERSION) || 0;
+  let newVersion = null;
+  let lastCheck = 0;
+
+  /** Mira la versión publicada. Devuelve el número nuevo, null si no hay, o undefined sin conexión. */
+  async function checkForUpdate() {
+    if (!canUpdate) return null;
+    lastCheck = Date.now();
+    try {
+      const res = await fetch('js/version.js?t=' + Date.now(), { cache: 'no-store' });
+      const m = (await res.text()).match(/APP_VERSION\s*=\s*(\d+)/);
+      const v = m ? Number(m[1]) : 0;
+      const before = newVersion;
+      newVersion = v > currentVersion ? v : null;
+      if (newVersion !== before) render();
+      return newVersion;
+    } catch (e) {
+      return undefined;
+    }
+  }
+
+  async function updateNow() {
+    toast('Actualizando…');
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update().catch(() => {});
+        await waitForActivation(reg.installing || reg.waiting);
+      }
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) { /* se recarga igualmente */ }
+    Store.setMeta({ updatedFrom: currentVersion });
+    location.reload();
+  }
+
+  /** Espera (como mucho 8 s) a que el service worker nuevo termine de instalarse. */
+  function waitForActivation(worker) {
+    if (!worker) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(done, 8000);
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'activated' || worker.state === 'redundant') done();
+      });
+    });
+  }
+
+  function updateBanner() {
+    if (!newVersion) return null;
+    return h('div', { class: 'update-banner', role: 'status' },
+      h('span', {}, 'Hay una versión nueva de la app.'),
+      h('button', { class: 'btn small primary', onclick: updateNow }, 'Actualizar ahora'));
+  }
+
+  function renderUpdateSection() {
+    if (!canUpdate) return null;
+    const btn = h('button', {
+      class: 'btn' + (newVersion ? ' primary' : ''), onclick: async () => {
+        if (newVersion) { updateNow(); return; }
+        btn.disabled = true;
+        btn.textContent = 'Buscando…';
+        const v = await checkForUpdate();
+        btn.disabled = false;
+        btn.textContent = 'Buscar actualización';
+        if (v) updateNow();
+        else if (v === undefined) toast('Sin conexión. Inténtalo con internet.');
+        else toast('Ya tienes la última versión');
+      }
+    }, newVersion ? `Actualizar a la versión ${newVersion}` : 'Buscar actualización');
+    return h('section', { class: 'card setting' },
+      h('h3', {}, 'Versión de la app'),
+      h('p', { class: 'muted small' }, newVersion
+        ? `Tienes la versión ${currentVersion} y hay una nueva. Al actualizar se recarga la app; tus datos no se tocan.`
+        : `Versión ${currentVersion}. La app busca actualizaciones sola al abrirla; con este botón lo haces al momento. Tus datos no se tocan.`),
+      h('div', { class: 'row' }, btn));
   }
 
   // ---------- compartir con otra persona ----------
@@ -953,7 +1036,18 @@
       .then((reg) => reg.update())
       .catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (hadController) toast('App actualizada. Tus datos siguen aquí.');
+      if (hadController && !Store.getMeta().updatedFrom) toast('App actualizada. Tus datos siguen aquí.');
     });
+    // Busca versión nueva al abrir la app y al volver a ella (como mucho una vez por minuto).
+    setTimeout(checkForUpdate, 1500);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastCheck > 60000) checkForUpdate();
+    });
+  }
+
+  const updatedFrom = Store.getMeta().updatedFrom;
+  if (updatedFrom) {
+    Store.setMeta({ updatedFrom: null });
+    toast(updatedFrom < currentVersion ? `App actualizada a la versión ${currentVersion}. Tus datos siguen aquí.` : 'App recargada. Ya tienes la última versión.');
   }
 })();

@@ -136,6 +136,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   border-radius: var(--radius); padding: 12px;
 }
 
+/* Aviso de versión nueva */
+.update-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  max-width: 720px; margin: 0 auto 12px; padding: 10px 14px;
+  background: var(--have); color: var(--text); border: 1px solid var(--primary); border-radius: var(--radius);
+}
+
 /* Sugerencias al escribir */
 .suggest {
   display: flex; flex-direction: column; margin-top: 4px;
