@@ -1038,8 +1038,22 @@
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (hadController && !Store.getMeta().updatedFrom) toast('App actualizada. Tus datos siguen aquí.');
     });
-    // Busca versión nueva al abrir la app y al volver a ella (como mucho una vez por minuto).
-    setTimeout(checkForUpdate, 1500);
+    // Enlace directo para actualizar: …/APP/#actualizar
+    const updateFromLink = () => {
+      if (location.hash !== '#actualizar') return false;
+      history.replaceState(null, '', location.pathname);
+      checkForUpdate().then((v) => {
+        if (v) updateNow();
+        else if (v === undefined) toast('Sin conexión. Inténtalo con internet.');
+        else toast('Ya tienes la última versión');
+      });
+      return true;
+    };
+    window.addEventListener('hashchange', updateFromLink);
+    if (!updateFromLink()) {
+      // Busca versión nueva al abrir la app y al volver a ella (como mucho una vez por minuto).
+      setTimeout(checkForUpdate, 1500);
+    }
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && Date.now() - lastCheck > 60000) checkForUpdate();
     });
