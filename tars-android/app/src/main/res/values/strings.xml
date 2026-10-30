@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">Permite a TARS leer la pantalla y pulsar o escribir en otras apps cuando tú se lo pides (por ejemplo, enviar un WhatsApp o manejar una app por voz). TARS no guarda ni envía lo que hay en pantalla salvo para cumplir tu petición.</string>
+    <string name="shortcut_listen">Hablar con TARS</string>
+</resources>

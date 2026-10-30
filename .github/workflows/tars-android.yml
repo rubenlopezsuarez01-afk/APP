@@ -1,0 +1,78 @@
+name: TARS Android
+
+on:
+  push:
+    paths:
+      - "tars-android/**"
+      - ".github/workflows/tars-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tars-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.TARS_KEYSTORE_B64 != '' }}
+    defaults:
+      run:
+        working-directory: tars-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Misma clave de firma en todas las compilaciones para poder actualizar sin desinstalar.
+      # Opción recomendada: secreto TARS_KEYSTORE_B64 (ver README). Si no existe, se reutiliza
+      # una clave de depuración guardada en la caché de Actions.
+      - name: Clave de firma (secreto)
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.TARS_KEYSTORE_B64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/tars.jks"
+          echo "TARS_KEYSTORE_FILE=$RUNNER_TEMP/tars.jks" >> "$GITHUB_ENV"
+
+      - name: Clave de firma (caché de depuración)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: tars-debug-keystore-v1
+
+      - name: Pruebas y compilación
+        env:
+          TARS_KEYSTORE_PASSWORD: ${{ secrets.TARS_KEYSTORE_PASSWORD }}
+          TARS_KEY_ALIAS: ${{ secrets.TARS_KEY_ALIAS }}
+          TARS_KEY_PASSWORD: ${{ secrets.TARS_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk TARS.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TARS-apk
+          path: tars-android/TARS.apk
+
+      - name: Publicar descarga directa
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tars-latest
+          name: TARS (última versión)
+          prerelease: true
+          make_latest: false
+          files: tars-android/TARS.apk
+          body: |
+            Última compilación de TARS, el asistente de voz para Android.
+            Descarga **TARS.apk** desde el móvil e instálala (ver instrucciones en tars-android/README.md).
+            Compilación ${{ github.run_number }} · ${{ github.sha }}
