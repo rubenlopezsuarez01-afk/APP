@@ -1,39 +1,38 @@
 package com.tars.asistente.core
 
 import com.anthropic.client.okhttp.AnthropicOkHttpClient
-import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.net.InetSocketAddress
 import java.time.LocalDateTime
 
 /** Prueba el bucle de herramientas contra un servidor falso que imita la API de mensajes. */
 class TarsBrainTest {
 
-    private lateinit var server: HttpServer
-    private val requests = mutableListOf<String>()
-    private val replies = ArrayDeque<String>()
+    private lateinit var server: MockWebServer
+    private val replies = mutableListOf<String>()
+
+    /** Cuerpos de las peticiones recibidas, en orden. */
+    private val requests by lazy { List(server.requestCount) { server.takeRequest().body.readUtf8() } }
 
     @Before
     fun setUp() {
-        server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/v1/messages") { exchange ->
-            requests += exchange.requestBody.readBytes().decodeToString()
-            val body = replies.removeFirst().toByteArray()
-            exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
-        }
+        server = MockWebServer()
         server.start()
     }
 
     @After
-    fun tearDown() = server.stop(0)
+    fun tearDown() = server.shutdown()
+
+    private fun enqueueReplies() = replies.forEach {
+        server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(it))
+    }
 
     private class FakeExecutor : ToolExecutor {
         val calls = mutableListOf<Pair<String, Map<String, Any?>>>()
@@ -50,7 +49,7 @@ class TarsBrainTest {
         clientFactory = { key ->
             AnthropicOkHttpClient.builder()
                 .apiKey(key)
-                .baseUrl("http://127.0.0.1:${server.address.port}")
+                .baseUrl(server.url("/").toString().trimEnd('/'))
                 .maxRetries(0)
                 .build()
         },
@@ -74,6 +73,7 @@ class TarsBrainTest {
     fun runsToolsAndReturnsFinalText() = runBlocking {
         replies += toolUse("1", "flashlight", """{"on":true}""")
         replies += text("2", "Linterna encendida.")
+        enqueueReplies()
         val executor = FakeExecutor()
         val labels = mutableListOf<String>()
 
@@ -95,6 +95,7 @@ class TarsBrainTest {
     fun blocksUnconfirmedMessages() = runBlocking {
         replies += toolUse("1", "send_sms", """{"recipient":"Ana","text":"Llego tarde","confirmed":false}""")
         replies += text("2", "¿Le envío a Ana: llego tarde?")
+        enqueueReplies()
         val executor = FakeExecutor()
 
         val answer = brain(executor).ask("dile a Ana que llego tarde")
@@ -108,6 +109,7 @@ class TarsBrainTest {
     fun keepsConversationBetweenTurns() = runBlocking {
         replies += text("1", "¿A quién?")
         replies += text("2", "Vale.")
+        enqueueReplies()
         val brain = brain(FakeExecutor())
 
         brain.ask("llama")
