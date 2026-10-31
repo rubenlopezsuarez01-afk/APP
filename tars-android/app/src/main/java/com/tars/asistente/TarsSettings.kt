@@ -18,6 +18,11 @@ class TarsSettings(context: Context) {
         get() = (prefs.getString("extra_blocked", "") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
         set(v) = prefs.edit().putString("extra_blocked", v.joinToString(",")).apply()
 
+    /** Descargar e instalar solo las versiones nuevas de TARS. */
+    var autoUpdate: Boolean
+        get() = prefs.getBoolean("auto_update", true)
+        set(v) = prefs.edit().putBoolean("auto_update", v).apply()
+
     /** Botón flotante para hablar con TARS (solo escucha al tocarlo). */
     var floatingButton: Boolean
         get() = prefs.getBoolean("floating_button", false)

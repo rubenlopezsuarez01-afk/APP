@@ -58,6 +58,10 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon testDebugUnitTest assembleRelease
           cp app/build/outputs/apk/release/app-release.apk TARS.apk
+          # Lo consulta la app para actualizarse sola.
+          cat > version.json <<JSON
+          {"versionCode": ${GITHUB_RUN_NUMBER}, "apkUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/download/tars-latest/TARS.apk"}
+          JSON
 
       - uses: actions/upload-artifact@v4
         with:
@@ -71,7 +75,9 @@ jobs:
           name: TARS (última versión)
           prerelease: true
           make_latest: false
-          files: tars-android/TARS.apk
+          files: |
+            tars-android/TARS.apk
+            tars-android/version.json
           body: |
             Última compilación de TARS, el asistente de voz para Android.
             Descarga **TARS.apk** desde el móvil e instálala (ver instrucciones en tars-android/README.md).

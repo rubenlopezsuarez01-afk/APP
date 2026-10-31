@@ -21,6 +21,7 @@ import com.tars.asistente.messages.ChatLine
 import com.tars.asistente.messages.Conversation
 import com.tars.asistente.messages.ReplyReceiver
 import com.tars.asistente.tools.PhoneTools
+import com.tars.asistente.update.Updater
 import com.tars.asistente.ui.MainActivity
 import com.tars.asistente.voice.Speaker
 import kotlinx.coroutines.CoroutineScope
@@ -48,6 +49,7 @@ class TarsApp : Application() {
             gemini = GeminiBrain(config, tools),
         )
         createChannels()
+        Updater.schedule(this)
     }
 
     fun isPhoneLocked(): Boolean = getSystemService(KeyguardManager::class.java).isKeyguardLocked
@@ -61,6 +63,11 @@ class TarsApp : Application() {
                 enableVibration(false)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_UPDATES, "Actualizaciones", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Avisos cuando TARS se actualiza"
             }
         )
         nm.createNotificationChannel(
@@ -130,5 +137,6 @@ class TarsApp : Application() {
     companion object {
         const val CHANNEL_SUGGESTIONS = "suggestions"
         const val CHANNEL_BUTTON = "button"
+        const val CHANNEL_UPDATES = "updates"
     }
 }

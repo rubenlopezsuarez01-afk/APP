@@ -14,6 +14,8 @@ class VoiceInput(
     private val onResult: (String) -> Unit,
     private val onError: (String?) -> Unit,
     private val onListeningChanged: (Boolean) -> Unit,
+    /** Volumen de la voz mientras escucha (dB), para animaciones. */
+    private val onLevel: (Float) -> Unit = {},
 ) {
     private var recognizer: SpeechRecognizer? = null
 
@@ -26,7 +28,7 @@ class VoiceInput(
         r.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) = onListeningChanged(true)
             override fun onBeginningOfSpeech() = Unit
-            override fun onRmsChanged(rmsdB: Float) = Unit
+            override fun onRmsChanged(rmsdB: Float) = onLevel(rmsdB)
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() = onListeningChanged(false)
             override fun onEvent(eventType: Int, params: Bundle?) = Unit

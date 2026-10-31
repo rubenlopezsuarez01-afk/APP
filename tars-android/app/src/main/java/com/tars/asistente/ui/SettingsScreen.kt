@@ -55,6 +55,7 @@ import androidx.core.content.ContextCompat
 import com.tars.asistente.access.TarsAccessibilityService
 import com.tars.asistente.core.Provider
 import com.tars.asistente.quick.FloatingService
+import com.tars.asistente.update.Updater
 
 val RUNTIME_PERMISSIONS: Array<String> = buildList {
     add(Manifest.permission.RECORD_AUDIO)
@@ -317,6 +318,34 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                 placeholder = { Text("p. ej. mediamarkt, glovo") },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Section("Actualizaciones")
+            Text(
+                "Versión instalada: ${Updater.installedVersion(context)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Toggle(
+                "Actualizar automáticamente",
+                "Busca versiones nuevas cada pocas horas, cuando no usas el móvil, y las instala sola.",
+                s.autoUpdate,
+            ) {
+                s.autoUpdate = it
+                Updater.schedule(context)
+            }
+            Status(
+                "Permiso «Instalar apps desconocidas» (para actualizarse)",
+                context.packageManager.canRequestPackageInstalls(),
+                "Permitir",
+            ) {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+                )
+            }
+            OutlinedButton(onClick = {
+                Updater.checkNow(context)
+                android.widget.Toast.makeText(context, "Buscando actualización…", android.widget.Toast.LENGTH_SHORT).show()
+            }) { Text("Buscar actualización ahora") }
 
             Section("Memoria")
             var memories by remember { mutableStateOf(s.memories) }

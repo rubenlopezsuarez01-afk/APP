@@ -16,7 +16,7 @@ TARS es un asistente personal tipo Siri o Google Assistant, pero con Claude como
 
 1. En el móvil, abre **https://github.com/rubenlopezsuarez01-afk/APP/releases/tag/tars-latest** y descarga **TARS.apk**.
 2. Ábrela. Android pedirá permitir *instalar apps desconocidas* desde el navegador: acéptalo.
-3. Cada vez que se actualiza el código, GitHub compila una versión nueva en el mismo enlace. Para actualizar, descarga e instala encima (no se borra nada).
+3. **Se actualiza sola**: cada pocas horas, con el móvil sin usar, TARS mira si hay versión nueva en ese enlace, la descarga y la instala (en Android 12 o superior sin preguntar; en versiones anteriores te sale una notificación para instalarla con un toque). La primera vez Android pedirá permitir *Instalar apps desconocidas* para TARS (*Ajustes de TARS → Actualizaciones*). También puedes pulsar *Buscar actualización ahora*.
 
 ## 2. Configurarla (5 minutos)
 
@@ -34,7 +34,7 @@ TARS es un asistente personal tipo Siri o Google Assistant, pero con Claude como
 ## 3. Usarla
 
 Formas de llamar a TARS (ninguna deja el micrófono escuchando: solo se abre cuando tocas):
-- **Botón flotante** (*Ajustes → Activar TARS rápido*): un botón redondo con micrófono en la pantalla de inicio (o encima de todas las apps, si quieres). Tócalo para hablar, mantenlo pulsado para abrir TARS y arrástralo para moverlo. La respuesta aparece en una tarjeta y te la dice en voz alta. Pide el permiso *Mostrar sobre otras apps*.
+- **Botón flotante** (*Ajustes → Activar TARS rápido*): un botón circular con micrófono. Al tocarlo vibra, se vuelve naranja, late y lanza ondas que crecen con tu voz mientras escucha; mientras piensa gira un arco a su alrededor y mientras responde palpita. Está en la pantalla de inicio (o encima de todas las apps, si quieres). Tócalo para hablar, mantenlo pulsado para abrir TARS y arrástralo para moverlo. La respuesta aparece en una tarjeta y te la dice en voz alta. Pide el permiso *Mostrar sobre otras apps*.
 - **Botón en la pantalla de bloqueo**: un botón «Hablar» en la notificación de TARS. Con el móvil bloqueado, TARS solo hace cosas sin datos personales (alarmas, temporizador, linterna, volumen, música, preguntas generales); para mensajes, llamadas, agenda o apps te pide desbloquear.
 - Mantener pulsado **Inicio** o el botón de encendido (si la elegiste como asistente).
 - Mosaico **TARS** en los *Ajustes rápidos* (desliza dos veces hacia abajo → lápiz → arrástralo).
@@ -91,7 +91,8 @@ app/src/main/java/com/tars/asistente/
   messages/   Lector de notificaciones, almacén de chats y respuestas sugeridas.
   access/     Servicio de accesibilidad (leer pantalla, pulsar, escribir).
   voice/      Reconocimiento y síntesis de voz.
-  quick/      Botón flotante y botón «Hablar» de la pantalla de bloqueo.
+  quick/      Botón flotante animado y botón «Hablar» de la pantalla de bloqueo.
+  update/     Actualización automática desde la release tars-latest (version.json + APK).
   ui/         Pantallas de chat y ajustes.
 ```
 

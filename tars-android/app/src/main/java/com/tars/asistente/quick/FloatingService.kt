@@ -18,12 +18,12 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -49,7 +49,7 @@ class FloatingService : Service() {
     private lateinit var wm: WindowManager
     private lateinit var voice: VoiceInput
 
-    private var bubble: ImageView? = null
+    private var bubble: BubbleView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var card: TextView? = null
     private var onHome = true
@@ -67,10 +67,13 @@ class FloatingService : Service() {
             onResult = { ask(it) },
             onError = { message ->
                 busy = false
-                setBubbleState(listening = false)
+                setBubbleState(BubbleView.State.IDLE)
                 if (message != null) showCard(message, autoHideMs = 3000) else removeCard()
             },
-            onListeningChanged = { setBubbleState(listening = it) },
+            onListeningChanged = { listening ->
+                if (listening) setBubbleState(BubbleView.State.LISTENING)
+            },
+            onLevel = { bubble?.setVoiceLevel(it) },
         )
         instance = this
     }
@@ -91,7 +94,13 @@ class FloatingService : Service() {
 
     private fun startInForeground() {
         val type = if (Build.VERSION.SDK_INT >= 30) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
+        try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
+        } catch (e: Exception) {
+            // Android no deja usar el micrófono si no se inició desde la app (p. ej. tras actualizarse):
+            // se volverá a iniciar al abrir TARS.
+            stopSelf()
+        }
     }
 
     private fun buildNotification(): Notification {
@@ -158,19 +167,24 @@ class FloatingService : Service() {
         app.speaker.stop()
         busy = true
         refresh()
+        setBubbleState(BubbleView.State.LISTENING)
+        bubble?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         showCard("Te escucho…")
         voice.start()
     }
 
     private fun ask(text: String) {
         showCard("«$text»\n…")
+        setBubbleState(BubbleView.State.THINKING)
         app.scope.launch {
             val answer = app.brain.ask(text)
             showCard(answer)
             if (app.settings.speakReplies) {
+                setBubbleState(BubbleView.State.SPEAKING)
                 app.speaker.speak(answer) {
                     main.post {
                         busy = false
+                        setBubbleState(BubbleView.State.IDLE)
                         if (app.settings.continuousConversation && answer.trimEnd().endsWith("?")) {
                             listen()
                         } else {
@@ -181,6 +195,7 @@ class FloatingService : Service() {
                 }
             } else {
                 busy = false
+                setBubbleState(BubbleView.State.IDLE)
                 scheduleHide(6000)
                 refresh()
             }
@@ -198,28 +213,26 @@ class FloatingService : Service() {
         PixelFormat.TRANSLUCENT,
     )
 
+    /** Tamaño de la ventana del botón: justo el círculo en reposo; más grande para las ondas al escuchar. */
+    private val idleSize get() = dp(68)
+    private val activeSize get() = dp(150)
+
     @SuppressLint("ClickableViewAccessibility")
     private fun addBubble() {
         if (bubble != null) return
-        val size = dp(56)
-        val view = ImageView(this).apply {
-            setImageResource(R.drawable.ic_mic)
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL }
-            elevation = dp(6).toFloat()
-            contentDescription = "Hablar con TARS"
-        }
+        val size = idleSize
+        val view = BubbleView(this)
         val params = overlayParams(size, size, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS).apply {
             gravity = Gravity.TOP or Gravity.START
             val s = app.settings
-            x = if (s.bubbleX >= 0) s.bubbleX else resources.displayMetrics.widthPixels - size - dp(12)
+            x = if (s.bubbleX >= 0) s.bubbleX else resources.displayMetrics.widthPixels - size - dp(8)
             y = s.bubbleY
         }
         view.setOnTouchListener(BubbleTouch(params))
         wm.addView(view, params)
         bubble = view
         bubbleParams = params
-        setBubbleState(listening = false)
+        setBubbleState(if (busy) BubbleView.State.THINKING else BubbleView.State.IDLE)
     }
 
     private fun removeBubble() {
@@ -227,10 +240,27 @@ class FloatingService : Service() {
         bubble = null
     }
 
-    private fun setBubbleState(listening: Boolean) {
-        val bg = bubble?.background as? GradientDrawable ?: return
-        bg.setColor(if (listening) AMBER else STEEL)
-        bubble?.alpha = if (busy && !listening) 0.7f else 1f
+    /** Cambia la animación del botón y agranda o encoge su ventana manteniendo el centro en su sitio. */
+    private fun setBubbleState(state: BubbleView.State) {
+        val view = bubble ?: return
+        val params = bubbleParams ?: return
+        view.state = state
+        val wanted = if (state == BubbleView.State.IDLE) idleSize else activeSize
+        if (params.width != wanted) {
+            val delta = (wanted - params.width) / 2
+            params.x -= delta
+            params.y -= delta
+            params.width = wanted
+            params.height = wanted
+            runCatching { wm.updateViewLayout(view, params) }
+        }
+    }
+
+    /** Posición guardada = esquina de la ventana en reposo, aunque ahora esté agrandada. */
+    private fun saveBubblePosition(params: WindowManager.LayoutParams) {
+        val offset = (params.width - idleSize) / 2
+        app.settings.bubbleX = params.x + offset
+        app.settings.bubbleY = params.y + offset
     }
 
     /** Toque: hablar. Mantener: abrir TARS. Arrastrar: mover el botón. */
@@ -272,8 +302,7 @@ class FloatingService : Service() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     main.removeCallbacks(longPress)
                     if (dragging) {
-                        app.settings.bubbleX = params.x
-                        app.settings.bubbleY = params.y
+                        saveBubblePosition(params)
                     } else if (e.actionMasked == MotionEvent.ACTION_UP) {
                         if (busy) stopAll() else listen()
                     }
@@ -287,6 +316,7 @@ class FloatingService : Service() {
         voice.stop()
         app.speaker.stop()
         busy = false
+        setBubbleState(BubbleView.State.IDLE)
         removeCard()
         refresh()
     }
@@ -334,7 +364,6 @@ class FloatingService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 7
         private const val STEEL = 0xFF9FB4C7.toInt()
-        private const val AMBER = 0xFFFFB454.toInt()
 
         @Volatile
         var instance: FloatingService? = null
