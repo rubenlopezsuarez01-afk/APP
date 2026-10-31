@@ -30,6 +30,8 @@ class TarsAccessibilityService : AccessibilityService() {
 
     private fun root(): AccessibilityNodeInfo? = rootInActiveWindow
 
+    fun foregroundPackage(): String? = root()?.packageName?.toString()
+
     /** Texto y elementos pulsables de la pantalla actual, resumidos para el modelo. */
     fun readScreen(): String {
         val root = root() ?: return "No puedo leer la pantalla ahora mismo."

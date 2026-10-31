@@ -89,6 +89,18 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(if (vm.enabled) "TARS encendido" else "TARS apagado", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Apagado no escucha, no lee mensajes ni notificaciones y no toca el teléfono.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = vm.enabled, onCheckedChange = vm::setEnabled)
+            }
+
             Section("Cerebro (Claude)")
             var key by remember { mutableStateOf(s.apiKey) }
             OutlinedTextField(
@@ -193,6 +205,23 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
                 )
             }) { Text("Abrir ficha de la app") }
+
+            Section("Apps bloqueadas")
+            Text(
+                "TARS nunca entra en apps ni webs de bancos, pagos, inversión ni compras (Amazon, AliExpress, " +
+                    "Shein, Temu, PayPal, Bizum, Google Wallet…), ni lee sus notificaciones. Este bloqueo no se " +
+                    "puede quitar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            var extra by remember { mutableStateOf(s.extraBlocked.joinToString(", ")) }
+            OutlinedTextField(
+                value = extra,
+                onValueChange = { extra = it; s.extraBlocked = it.split(',') },
+                label = { Text("Bloquear también (separado por comas)") },
+                placeholder = { Text("p. ej. mediamarkt, glovo") },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Section("Memoria")
             var memories by remember { mutableStateOf(s.memories) }

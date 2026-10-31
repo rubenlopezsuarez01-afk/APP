@@ -47,6 +47,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         onListeningChanged = { listening = it },
     )
 
+    /** Interruptor general de TARS. */
+    var enabled by mutableStateOf(app.settings.enabled)
+        private set
+
+    fun setEnabled(on: Boolean) {
+        settings.enabled = on
+        enabled = on
+        if (!on) {
+            voice.stop()
+            app.speaker.stop()
+            app.brain.reset()
+            partial = ""
+        }
+    }
+
     fun refresh() {
         refreshTick++
     }
@@ -56,6 +71,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startListening() {
+        if (!enabled) return
         app.speaker.stop()
         if (!voice.available) {
             items += ChatItem(Role.TOOL, "Este teléfono no tiene reconocimiento de voz disponible.")
@@ -66,7 +82,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun send(text: String, fromVoice: Boolean = false) {
         val clean = text.trim()
-        if (clean.isEmpty() || thinking) return
+        if (clean.isEmpty() || thinking || !enabled) return
         items += ChatItem(Role.USER, clean)
         thinking = true
         viewModelScope.launch {

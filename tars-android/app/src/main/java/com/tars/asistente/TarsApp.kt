@@ -50,6 +50,7 @@ class TarsApp : Application() {
 
     /** Llamado por el lector de notificaciones cuando llegan mensajes nuevos de otra persona. */
     fun onIncomingMessages(conversation: Conversation, fresh: List<ChatLine>) {
+        if (!settings.enabled) return
         if (settings.announceMessages) {
             val last = fresh.last()
             val who = if (last.sender == conversation.title) last.sender else "${last.sender} en ${conversation.title}"

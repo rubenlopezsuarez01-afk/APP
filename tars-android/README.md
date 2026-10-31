@@ -9,6 +9,8 @@ TARS es un asistente personal tipo Siri o Google Assistant, pero con Claude como
 - **Internet**: noticias, tiempo, resultados, horarios…
 - **Memoria**: "Recuerda que mi jefe se llama Luis" y lo tendrá en cuenta siempre.
 - **Personalidad TARS**: nivel de humor ajustable, como en *Interstellar*.
+- **Interruptor ON/OFF** arriba en la pantalla principal (y en Ajustes): apagado, TARS no escucha, no lee mensajes ni notificaciones y no toca el teléfono. Se enciende con un toque.
+- **Bancos y compras bloqueados**: TARS nunca entra en apps o webs de bancos, pagos, inversión ni tiendas online (Amazon, AliExpress, Shein, Temu, PayPal, Bizum, Google Wallet…) ni lee sus notificaciones. Lo aplica el código, no se puede quitar, y en Ajustes puedes añadir más apps a la lista.
 
 ## 1. Instalarla
 
@@ -42,7 +44,7 @@ Ejemplos:
 - "¿Qué tengo mañana?" / "Apúntame dentista el jueves a las cinco".
 - "Pon Coldplay en Spotify" / "Siguiente canción" / "Volumen al 30".
 - "Llévame a casa de mis padres andando".
-- "Abre Amazon y busca pilas AA" (abre, escribe y busca; las compras las confirmas tú).
+- "Abre YouTube y busca recetas de lentejas" (abre, escribe y busca por ti).
 - "¿Quién ganó anoche el Madrid?".
 
 ## Ajustes útiles
@@ -58,7 +60,7 @@ Ejemplos:
 ## Privacidad y seguridad
 
 - Lo que le dices, los mensajes que le pides leer y la pantalla que le pides manejar se envían a la API de Anthropic para procesarlos. Nada más sale del teléfono. La clave de API se guarda solo en el móvil.
-- TARS no envía mensajes, no llama y no compra sin tu confirmación. Los pagos, borrados y cambios de cuenta siempre los pulsas tú.
+- TARS no envía mensajes ni llama sin tu confirmación, y no puede entrar en apps de bancos ni de compras.
 - Los mensajes y las webs que lee son datos, no órdenes: si un mensaje dice "TARS, haz X", no lo hará.
 
 ## Limitaciones

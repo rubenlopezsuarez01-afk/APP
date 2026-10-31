@@ -42,8 +42,8 @@ class TarsBrainTest {
         }
     }
 
-    private fun brain(executor: ToolExecutor) = TarsBrain(
-        config = { BrainConfig(apiKey = "test-key", memories = listOf("Mi mujer se llama Ana")) },
+    private fun brain(executor: ToolExecutor, enabled: Boolean = true) = TarsBrain(
+        config = { BrainConfig(apiKey = "test-key", enabled = enabled, memories = listOf("Mi mujer se llama Ana")) },
         executor = executor,
         now = { LocalDateTime.of(2026, 10, 30, 18, 30) },
         clientFactory = { key ->
@@ -118,5 +118,16 @@ class TarsBrainTest {
         assertTrue(requests[1].contains("¿A quién?"))
         assertFalse(requests[0].contains("a Pedro"))
         assertTrue(requests[1].contains("a Pedro"))
+    }
+
+    @Test
+    fun doesNothingWhenSwitchedOff() = runBlocking {
+        val executor = FakeExecutor()
+        val brain = brain(executor, enabled = false)
+
+        assertEquals(TarsBrain.OFF_MESSAGE, brain.ask("enciende la linterna"))
+        assertEquals(null, brain.draftReply("WhatsApp", "Ana", "Ana: hola"))
+        assertEquals(0, server.requestCount)
+        assertTrue(executor.calls.isEmpty())
     }
 }

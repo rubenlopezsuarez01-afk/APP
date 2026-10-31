@@ -7,6 +7,16 @@ import com.tars.asistente.core.BrainConfig
 class TarsSettings(context: Context) {
     private val prefs = context.getSharedPreferences("tars", Context.MODE_PRIVATE)
 
+    /** Interruptor general: apagado, TARS no escucha, no lee notificaciones ni toca el teléfono. */
+    var enabled: Boolean
+        get() = prefs.getBoolean("enabled", true)
+        set(v) = prefs.edit().putBoolean("enabled", v).apply()
+
+    /** Palabras extra para bloquear apps (además de bancos y tiendas, que siempre están bloqueados). */
+    var extraBlocked: List<String>
+        get() = (prefs.getString("extra_blocked", "") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        set(v) = prefs.edit().putString("extra_blocked", v.joinToString(",")).apply()
+
     var apiKey: String
         get() = prefs.getString("api_key", "") ?: ""
         set(v) = prefs.edit().putString("api_key", v.trim()).apply()
@@ -64,6 +74,7 @@ class TarsSettings(context: Context) {
 
     fun brainConfig() = BrainConfig(
         apiKey = apiKey,
+        enabled = enabled,
         model = model,
         effort = effort,
         userName = userName,

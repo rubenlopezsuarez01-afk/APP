@@ -26,6 +26,7 @@ import android.view.KeyEvent
 import androidx.core.content.ContextCompat
 import com.tars.asistente.TarsSettings
 import com.tars.asistente.access.TarsAccessibilityService
+import com.tars.asistente.core.AppBlocklist
 import com.tars.asistente.core.ToolExecutor
 import com.tars.asistente.core.ToolResult
 import com.tars.asistente.messages.MessageStore
@@ -77,7 +78,12 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
         else -> name
     }
 
-    override suspend fun execute(name: String, args: Map<String, Any?>): ToolResult = when (name) {
+    override suspend fun execute(name: String, args: Map<String, Any?>): ToolResult {
+        if (!settings.enabled) return ToolResult("TARS está apagado: no se ejecuta nada.", true)
+        return dispatch(name, args)
+    }
+
+    private suspend fun dispatch(name: String, args: Map<String, Any?>): ToolResult = when (name) {
         "list_messages" -> listMessages(args.bool("only_unread"), args.strOrNull("app"))
         "reply_message" -> replyMessage(args.str("conversation_id"), args.str("text"))
         "send_whatsapp" -> sendWhatsApp(args.str("recipient"), args.str("text"))
@@ -86,7 +92,7 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
         "find_contact" -> findContact(args.str("query"))
         "list_notifications" -> listNotifications()
         "open_app" -> openApp(args.str("app_name"))
-        "open_url" -> start(Intent(Intent.ACTION_VIEW, Uri.parse(args.str("url"))), "Abierto.")
+        "open_url" -> openUrl(args.str("url"))
         "open_settings" -> openSettings(args.str("panel"))
         "device_status" -> deviceStatus()
         "flashlight" -> flashlight(args.bool("on"))
@@ -103,8 +109,18 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
         )
         "read_screen" -> withScreen { ToolResult(it.readScreen()) }
         "tap" -> withScreen {
-            if (it.tap(args.str("text"))) ToolResult("Pulsado.")
-            else ToolResult("No encuentro «${args.str("text")}» en pantalla. Lee la pantalla de nuevo.", true)
+            if (!it.tap(args.str("text"))) {
+                ToolResult("No encuentro «${args.str("text")}» en pantalla. Lee la pantalla de nuevo.", true)
+            } else {
+                // Si el toque ha abierto una app bloqueada (p. ej. su icono en el escritorio), salir de ella.
+                delay(800)
+                if (isBlockedForeground(it)) {
+                    it.systemAction("home")
+                    ToolResult(AppBlocklist.REFUSAL, true)
+                } else {
+                    ToolResult("Pulsado.")
+                }
+            }
         }
         "type_text" -> withScreen {
             if (it.typeText(args.str("text"), args.strOrNull("field_hint"))) ToolResult("Escrito.")
@@ -114,7 +130,7 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
             if (it.scroll(args.str("direction") != "up")) ToolResult("Desplazado.")
             else ToolResult("No hay nada que desplazar.", true)
         }
-        "system_action" -> withScreen {
+        "system_action" -> withScreen(allowOnBlocked = true) {
             if (it.systemAction(args.str("action"))) ToolResult("Hecho.") else ToolResult("No disponible.", true)
         }
         "wait" -> {
@@ -286,8 +302,22 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
             ?: apps.firstOrNull { normalize(it.second).contains(q) }
             ?: apps.firstOrNull { q.contains(normalize(it.second)) && it.second.length > 3 }
             ?: return ToolResult("No encuentro ninguna app llamada «$name».", true)
+        if (AppBlocklist.isBlockedApp(match.first, match.second, settings.extraBlocked)) {
+            return ToolResult(AppBlocklist.REFUSAL, true)
+        }
         val intent = pm.getLaunchIntentForPackage(match.first) ?: return ToolResult("No se puede abrir ${match.second}.", true)
         return start(intent, "Abierta ${match.second}.")
+    }
+
+    private fun openUrl(url: String): ToolResult {
+        if (AppBlocklist.isBlockedUrl(url, settings.extraBlocked)) return ToolResult(AppBlocklist.REFUSAL, true)
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        // Un enlace puede abrirse directamente en la app de una tienda o banco: comprobar qué app lo recibiría.
+        val handler = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
+        if (handler != null && AppBlocklist.isBlockedApp(handler.packageName, "", settings.extraBlocked)) {
+            return ToolResult(AppBlocklist.REFUSAL, true)
+        }
+        return start(intent, "Abierto.")
     }
 
     private fun openSettings(panel: String): ToolResult {
@@ -489,12 +519,31 @@ class PhoneTools(private val context: Context, private val settings: TarsSetting
 
     // ---------- Utilidades ----------
 
-    private suspend fun withScreen(block: suspend (TarsAccessibilityService) -> ToolResult): ToolResult {
+    private suspend fun withScreen(
+        allowOnBlocked: Boolean = false,
+        block: suspend (TarsAccessibilityService) -> ToolResult,
+    ): ToolResult {
         val service = TarsAccessibilityService.instance ?: return ToolResult(
             "El control de pantalla está desactivado. El usuario debe activar 'TARS' en Ajustes → Accesibilidad.",
             true,
         )
-        return withContext(Dispatchers.Main) { block(service) }
+        return withContext(Dispatchers.Main) {
+            if (!allowOnBlocked && isBlockedForeground(service)) ToolResult(AppBlocklist.REFUSAL, true)
+            else block(service)
+        }
+    }
+
+    /** ¿La app que hay ahora en pantalla es de un banco, pagos o compras? */
+    private fun isBlockedForeground(service: TarsAccessibilityService): Boolean {
+        val pkg = service.foregroundPackage() ?: return false
+        return AppBlocklist.isBlockedApp(pkg, appLabel(pkg), settings.extraBlocked)
+    }
+
+    private fun appLabel(pkg: String): String = try {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    } catch (e: PackageManager.NameNotFoundException) {
+        ""
     }
 
     private fun start(intent: Intent, ok: String): ToolResult = try {

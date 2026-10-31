@@ -6,6 +6,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import com.tars.asistente.TarsApp
+import com.tars.asistente.core.AppBlocklist
 
 /**
  * Recibe las notificaciones del teléfono para que TARS pueda leer los mensajes y
@@ -31,6 +32,10 @@ class TarsNotificationListener : NotificationListenerService() {
 
     private fun handle(sbn: StatusBarNotification, announce: Boolean) {
         if (sbn.packageName == packageName) return
+        val app = application as TarsApp
+        // Apagado: no se captura nada. Bancos y tiendas: sus notificaciones nunca se leen.
+        if (!app.settings.enabled) return
+        if (AppBlocklist.isBlockedApp(sbn.packageName, appLabel(sbn.packageName), app.settings.extraBlocked)) return
         val n = sbn.notification ?: return
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
 
@@ -67,7 +72,7 @@ class TarsNotificationListener : NotificationListenerService() {
         if (replyAction != null) conversation.replyAction = replyAction
         val fresh = MessageStore.addLines(conversation, lines).filter { !it.fromMe }
         if (announce && fresh.isNotEmpty()) {
-            (application as TarsApp).onIncomingMessages(conversation, fresh)
+            app.onIncomingMessages(conversation, fresh)
         }
     }
 

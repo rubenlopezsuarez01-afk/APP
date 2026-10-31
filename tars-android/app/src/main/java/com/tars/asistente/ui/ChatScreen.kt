@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -37,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,7 +67,21 @@ fun ChatScreen(vm: ChatViewModel, onSettings: () -> Unit) {
             TopAppBar(
                 title = { Text("TARS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, letterSpacing = 6.sp) },
                 actions = {
-                    IconButton(onClick = vm::newConversation) { Icon(Icons.Default.Add, "Nueva conversación") }
+                    // Interruptor de encendido, siempre a la vista.
+                    Text(
+                        if (vm.enabled) "ON" else "OFF",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = if (vm.enabled) Steel else Amber,
+                    )
+                    Switch(
+                        checked = vm.enabled,
+                        onCheckedChange = vm::setEnabled,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                    IconButton(onClick = vm::newConversation, enabled = vm.enabled) {
+                        Icon(Icons.Default.Add, "Nueva conversación")
+                    }
                     IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, "Ajustes") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -83,6 +99,10 @@ fun ChatScreen(vm: ChatViewModel, onSettings: () -> Unit) {
             LaunchedEffect(vm.items.size, vm.thinking) {
                 val last = vm.items.size + (if (vm.thinking) 1 else 0) - 1
                 if (last >= 0) listState.animateScrollToItem(last)
+            }
+            if (!vm.enabled) {
+                SwitchedOff(Modifier.weight(1f)) { vm.setEnabled(true) }
+                return@Column
             }
             if (vm.items.isEmpty() && !vm.thinking) {
                 Hints(Modifier.weight(1f))
@@ -107,6 +127,26 @@ fun ChatScreen(vm: ChatViewModel, onSettings: () -> Unit) {
             }
             InputBar(vm)
         }
+    }
+}
+
+@Composable
+private fun SwitchedOff(modifier: Modifier, onTurnOn: () -> Unit) {
+    Column(
+        modifier.fillMaxWidth().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(painterResource(R.drawable.ic_tars), null, Modifier.size(72.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.size(16.dp))
+        Text("TARS está apagado", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.size(8.dp))
+        Text(
+            "No escucha, no lee tus mensajes ni notificaciones y no toca el teléfono.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.size(24.dp))
+        Button(onClick = onTurnOn) { Text("Encender TARS") }
     }
 }
 
