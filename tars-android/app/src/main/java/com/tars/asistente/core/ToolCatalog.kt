@@ -23,25 +23,48 @@ object ToolCatalog {
     private const val CONFIRMED =
         "true solo si el usuario ya ha confirmado explícitamente este envío/acción con este texto exacto."
 
+    /** Definición de una herramienta, independiente del proveedor (Claude o Gemini). */
+    data class ToolSpec(
+        val name: String,
+        val description: String,
+        val properties: Map<String, Map<String, Any>>,
+        val required: List<String>,
+    ) {
+        fun toAnthropic(): Tool {
+            val props = Tool.InputSchema.Properties.builder()
+            properties.forEach { (key, schema) -> props.putAdditionalProperty(key, JsonValue.from(schema)) }
+            return Tool.builder()
+                .name(name)
+                .description(description)
+                .inputSchema(Tool.InputSchema.builder().properties(props.build()).required(required).build())
+                .build()
+        }
+
+        /** Formato `functionDeclarations` de Gemini (tipos en mayúsculas, sin `parameters` si no hay). */
+        fun toGemini(): Map<String, Any> = buildMap {
+            put("name", name)
+            put("description", description)
+            if (properties.isNotEmpty()) {
+                put(
+                    "parameters",
+                    mapOf(
+                        "type" to "OBJECT",
+                        "properties" to properties.mapValues { (_, schema) ->
+                            schema.mapValues { (k, v) -> if (k == "type") v.toString().uppercase() else v }
+                        },
+                        "required" to required,
+                    ),
+                )
+            }
+        }
+    }
+
     private fun tool(
         name: String,
         description: String,
         properties: Map<String, Map<String, Any>> = emptyMap(),
         required: List<String> = emptyList(),
-    ): Tool {
-        val props = Tool.InputSchema.Properties.builder()
-        properties.forEach { (key, schema) -> props.putAdditionalProperty(key, JsonValue.from(schema)) }
-        return Tool.builder()
-            .name(name)
-            .description(description)
-            .inputSchema(
-                Tool.InputSchema.builder()
-                    .properties(props.build())
-                    .required(required)
-                    .build()
-            )
-            .build()
-    }
+    ) = ToolSpec(name, description, properties, required)
 
     /** Herramientas que actúan hacia terceros y requieren `confirmed=true`. */
     val NEEDS_CONFIRMATION = setOf("reply_message", "send_sms", "send_whatsapp", "make_call")
@@ -54,7 +77,7 @@ object ToolCatalog {
         "device_status", "flashlight", "set_volume", "media_control", "play_music", "set_alarm", "set_timer", "wait",
     )
 
-    val tools: List<Tool> = listOf(
+    val specs: List<ToolSpec> = listOf(
         // --- Mensajes ---
         tool(
             "list_messages",
@@ -280,4 +303,10 @@ object ToolCatalog {
             listOf("text"),
         ),
     )
+
+    /** Herramientas en formato de Claude. */
+    val tools: List<Tool> = specs.map { it.toAnthropic() }
+
+    /** Herramientas en formato de Gemini. */
+    val geminiDeclarations: List<Map<String, Any>> = specs.map { it.toGemini() }
 }

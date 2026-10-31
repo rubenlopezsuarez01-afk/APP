@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.tars.asistente.access.TarsAccessibilityService
+import com.tars.asistente.core.Provider
 import com.tars.asistente.quick.FloatingService
 
 val RUNTIME_PERMISSIONS: Array<String> = buildList {
@@ -102,26 +103,70 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                 Switch(checked = vm.enabled, onCheckedChange = vm::switchPower)
             }
 
-            Section("Cerebro (Claude)")
-            var key by remember { mutableStateOf(s.apiKey) }
-            OutlinedTextField(
-                value = key,
-                onValueChange = { key = it; s.apiKey = it },
-                label = { Text("Clave de API de Anthropic") },
-                placeholder = { Text("sk-ant-…") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                "Consíguela en console.anthropic.com → API Keys. Se guarda solo en este teléfono.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            var model by remember { mutableStateOf(s.model) }
-            Choice("Modelo", com.tars.asistente.TarsSettings.MODELS, model) { model = it; s.model = it }
-            var effort by remember { mutableStateOf(s.effort) }
-            Choice("Velocidad", com.tars.asistente.TarsSettings.EFFORTS, effort) { effort = it; s.effort = it }
+            Section("Cerebro")
+            var provider by remember { mutableStateOf(s.provider) }
+            Choice(
+                "¿Quién piensa por TARS?",
+                listOf(
+                    Provider.GEMINI.name to "Gemini (Google) · gratis, con límite diario",
+                    Provider.CLAUDE.name to "Claude (Anthropic) · de pago, el mejor",
+                ),
+                provider.name,
+            ) {
+                provider = Provider.valueOf(it)
+                s.provider = provider
+            }
+
+            if (provider == Provider.GEMINI) {
+                var gKey by remember { mutableStateOf(s.geminiKey) }
+                OutlinedTextField(
+                    value = gKey,
+                    onValueChange = { gKey = it; s.geminiKey = it },
+                    label = { Text("Clave de API de Gemini") },
+                    placeholder = { Text("AIza…") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Gratis en aistudio.google.com → «Get API key» (inicia sesión con tu cuenta de Google). " +
+                        "Se guarda solo en este teléfono.\n" +
+                        "Ojo: en el plan gratuito Google puede usar lo que envías (incluidos los mensajes que " +
+                        "TARS lee) para mejorar sus productos, y puede revisarlo una persona. Tampoco hay " +
+                        "búsqueda en internet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                var gModel by remember { mutableStateOf(s.geminiModel) }
+                OutlinedTextField(
+                    value = gModel,
+                    onValueChange = { gModel = it; s.geminiModel = it },
+                    label = { Text("Modelo de Gemini") },
+                    supportingText = { Text("Por defecto gemini-2.5-flash. Cámbialo si Google lo retira.") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                var key by remember { mutableStateOf(s.apiKey) }
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { key = it; s.apiKey = it },
+                    label = { Text("Clave de API de Anthropic") },
+                    placeholder = { Text("sk-ant-…") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Consíguela en console.anthropic.com → API Keys (de pago por uso). Se guarda solo en este teléfono.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                var model by remember { mutableStateOf(s.model) }
+                Choice("Modelo", com.tars.asistente.TarsSettings.MODELS, model) { model = it; s.model = it }
+                var effort by remember { mutableStateOf(s.effort) }
+                Choice("Velocidad", com.tars.asistente.TarsSettings.EFFORTS, effort) { effort = it; s.effort = it }
+            }
 
             Section("Personalidad")
             var name by remember { mutableStateOf(s.userName) }

@@ -66,6 +66,9 @@ android {
 
 dependencies {
     implementation("com.anthropic:anthropic-java:3.3.0")
+    // Para Gemini (API REST): las mismas librerías HTTP y JSON que ya usa el SDK de Anthropic.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.19.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     implementation("androidx.core:core-ktx:1.15.0")

@@ -13,6 +13,9 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
+import com.tars.asistente.core.Brain
+import com.tars.asistente.core.GeminiBrain
+import com.tars.asistente.core.RoutingBrain
 import com.tars.asistente.core.TarsBrain
 import com.tars.asistente.messages.ChatLine
 import com.tars.asistente.messages.Conversation
@@ -30,16 +33,19 @@ class TarsApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     lateinit var settings: TarsSettings
         private set
-    lateinit var brain: TarsBrain
+    lateinit var brain: Brain
         private set
     val speaker by lazy { Speaker(this) }
 
     override fun onCreate() {
         super.onCreate()
         settings = TarsSettings(this)
-        brain = TarsBrain(
-            config = { settings.brainConfig().copy(locked = isPhoneLocked()) },
-            executor = PhoneTools(this, settings),
+        val config = { settings.brainConfig().copy(locked = isPhoneLocked()) }
+        val tools = PhoneTools(this, settings)
+        brain = RoutingBrain(
+            config = config,
+            claude = TarsBrain(config, tools),
+            gemini = GeminiBrain(config, tools),
         )
         createChannels()
     }
@@ -72,7 +78,7 @@ class TarsApp : Application() {
             val who = if (last.sender == conversation.title) last.sender else "${last.sender} en ${conversation.title}"
             speaker.speak("Mensaje de $who por ${conversation.appName}: ${last.text.take(300)}")
         }
-        if (settings.suggestReplies && conversation.canReply && settings.apiKey.isNotBlank()) {
+        if (settings.suggestReplies && conversation.canReply && settings.hasKey) {
             scope.launch {
                 val draft = brain.draftReply(conversation.appName, conversation.title, conversation.transcript())
                     ?: return@launch

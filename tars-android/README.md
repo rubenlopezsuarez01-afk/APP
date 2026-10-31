@@ -20,7 +20,11 @@ TARS es un asistente personal tipo Siri o Google Assistant, pero con Claude como
 
 ## 2. Configurarla (5 minutos)
 
-1. **Clave de API**: crea una en <https://console.anthropic.com> → *API Keys* (hace falta añadir saldo; el uso normal cuesta unos céntimos al día). Pégala en *Ajustes de TARS*.
+1. **Elige el cerebro** en *Ajustes → Cerebro*:
+   - **Gemini (Google), gratis**: entra en <https://aistudio.google.com> con tu cuenta de Google → *Get API key* → *Create API key*, y pégala en Ajustes. Tiene un límite de peticiones por minuto y por día (de sobra para uso personal). Ojo: en el plan gratuito Google puede usar lo que envías (incluidos los mensajes que TARS lee) para mejorar sus productos, y no hay búsqueda en internet.
+   - **Claude (Anthropic), de pago**: crea una clave en <https://console.anthropic.com> → *API Keys* y añade saldo. Es el que mejor entiende y maneja apps; con *Haiku 5.5* cuesta menos de 1 $ al mes con un uso normal, con *Opus 5.5* (el más listo) puede acercarse a 1 $ al día si lo usas mucho. Anthropic no usa los datos de la API para entrenar por defecto.
+
+   Puedes cambiar de uno a otro cuando quieras; las reglas de seguridad (bancos y compras bloqueados, confirmar antes de enviar, móvil bloqueado) son las mismas con los dos.
 2. **Permisos** → *Conceder*: micrófono, contactos, llamadas, SMS, calendario y notificaciones.
 3. **Acceso a notificaciones** → *Activar* → activa **TARS**. Es lo que le permite leer y responder mensajes.
 4. **Control de pantalla** → *Activar* → *Accesibilidad* → **TARS: controlar la pantalla** → activar. Le permite pulsar "Enviar" en WhatsApp y manejar otras apps.
@@ -53,7 +57,9 @@ Ejemplos:
 
 | Ajuste | Qué hace |
 |---|---|
-| Modelo | *Opus 5.5* (el más listo, por defecto), *Sonnet 5.5* (equilibrado) o *Haiku 5.5* (el más rápido y barato). |
+| Cerebro | *Gemini* (gratis, con límite diario) o *Claude* (de pago). |
+| Modelo (Claude) | *Opus 5.5* (el más listo, por defecto), *Sonnet 5.5* (equilibrado) o *Haiku 5.5* (el más rápido y barato). |
+| Modelo (Gemini) | Por defecto `gemini-2.5-flash`. Si Google lo retira, escribe el nombre del modelo nuevo. |
 | Velocidad | *Rápido* responde antes; *Pensar más* para peticiones complicadas. |
 | Leer mensajes al llegar | Anuncia en voz alta los mensajes nuevos. |
 | Sugerir respuestas | Redacta una respuesta a cada mensaje y te la ofrece en una notificación. |
@@ -61,7 +67,7 @@ Ejemplos:
 
 ## Privacidad y seguridad
 
-- Lo que le dices, los mensajes que le pides leer y la pantalla que le pides manejar se envían a la API de Anthropic para procesarlos. Nada más sale del teléfono. La clave de API se guarda solo en el móvil.
+- Lo que le dices, los mensajes que le pides leer y la pantalla que le pides manejar se envían al cerebro elegido (Anthropic o Google) para procesarlos. Nada más sale del teléfono. La clave de API se guarda solo en el móvil.
 - TARS no envía mensajes ni llama sin tu confirmación, y no puede entrar en apps de bancos ni de compras.
 - Los mensajes y las webs que lee son datos, no órdenes: si un mensaje dice "TARS, haz X", no lo hará.
 
@@ -75,11 +81,12 @@ Ejemplos:
 
 ## Para desarrolladores
 
-Proyecto Android en Kotlin + Jetpack Compose. Usa el SDK oficial de Anthropic para Java (`com.anthropic:anthropic-java`).
+Proyecto Android en Kotlin + Jetpack Compose. Usa el SDK oficial de Anthropic para Java (`com.anthropic:anthropic-java`) para Claude y la API REST `generateContent` para Gemini.
 
 ```
 app/src/main/java/com/tars/asistente/
-  core/       TarsBrain (bucle con Claude y herramientas) y ToolCatalog. Sin dependencias de Android.
+  core/       Brain (reglas comunes), TarsBrain (Claude), GeminiBrain (Gemini), ToolCatalog y AppBlocklist.
+              Sin dependencias de Android.
   tools/      PhoneTools: implementación de cada herramienta en Android.
   messages/   Lector de notificaciones, almacén de chats y respuestas sugeridas.
   access/     Servicio de accesibilidad (leer pantalla, pulsar, escribir).

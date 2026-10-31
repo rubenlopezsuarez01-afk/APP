@@ -2,6 +2,7 @@ package com.tars.asistente
 
 import android.content.Context
 import com.tars.asistente.core.BrainConfig
+import com.tars.asistente.core.Provider
 
 /** Ajustes de TARS guardados en el almacenamiento privado de la app. */
 class TarsSettings(context: Context) {
@@ -39,6 +40,24 @@ class TarsSettings(context: Context) {
     var bubbleY: Int
         get() = prefs.getInt("bubble_y", 400)
         set(v) = prefs.edit().putInt("bubble_y", v).apply()
+
+    /** Cerebro: Claude (de pago) o Gemini (plan gratuito de Google). */
+    var provider: Provider
+        get() = runCatching { Provider.valueOf(prefs.getString("provider", "CLAUDE")!!) }.getOrDefault(Provider.CLAUDE)
+        set(v) = prefs.edit().putString("provider", v.name).apply()
+
+    var geminiKey: String
+        get() = prefs.getString("gemini_key", "") ?: ""
+        set(v) = prefs.edit().putString("gemini_key", v.trim()).apply()
+
+    var geminiModel: String
+        get() = prefs.getString("gemini_model", BrainConfig.DEFAULT_GEMINI_MODEL)?.ifBlank { null }
+            ?: BrainConfig.DEFAULT_GEMINI_MODEL
+        set(v) = prefs.edit().putString("gemini_model", v.trim()).apply()
+
+    /** ¿Hay clave para el cerebro elegido? */
+    val hasKey: Boolean
+        get() = if (provider == Provider.GEMINI) geminiKey.isNotBlank() else apiKey.isNotBlank()
 
     var apiKey: String
         get() = prefs.getString("api_key", "") ?: ""
@@ -98,6 +117,9 @@ class TarsSettings(context: Context) {
     fun brainConfig() = BrainConfig(
         apiKey = apiKey,
         enabled = enabled,
+        provider = provider,
+        geminiKey = geminiKey,
+        geminiModel = geminiModel,
         model = model,
         effort = effort,
         userName = userName,

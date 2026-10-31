@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             TarsTheme {
-                var showSettings by rememberSaveable { mutableStateOf(vm.settings.apiKey.isBlank()) }
+                var showSettings by rememberSaveable { mutableStateOf(!vm.settings.hasKey) }
                 BackHandler(enabled = showSettings) { showSettings = false }
                 if (showSettings) {
                     SettingsScreen(vm, onBack = { showSettings = false }, onRequestPermissions = {

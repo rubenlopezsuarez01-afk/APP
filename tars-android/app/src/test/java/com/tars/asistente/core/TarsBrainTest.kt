@@ -132,7 +132,7 @@ class TarsBrainTest {
         val executor = FakeExecutor()
         val brain = brain(executor, enabled = false)
 
-        assertEquals(TarsBrain.OFF_MESSAGE, brain.ask("enciende la linterna"))
+        assertEquals(Brains.OFF_MESSAGE, brain.ask("enciende la linterna"))
         assertEquals(null, brain.draftReply("WhatsApp", "Ana", "Ana: hola"))
         assertEquals(0, server.requestCount)
         assertTrue(executor.calls.isEmpty())
