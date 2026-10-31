@@ -98,7 +98,7 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = vm.enabled, onCheckedChange = vm::setEnabled)
+                Switch(checked = vm.enabled, onCheckedChange = vm::switchPower)
             }
 
             Section("Cerebro (Claude)")

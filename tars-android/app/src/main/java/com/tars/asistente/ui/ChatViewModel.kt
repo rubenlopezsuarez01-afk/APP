@@ -51,7 +51,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     var enabled by mutableStateOf(app.settings.enabled)
         private set
 
-    fun setEnabled(on: Boolean) {
+    fun switchPower(on: Boolean) {
         settings.enabled = on
         enabled = on
         if (!on) {

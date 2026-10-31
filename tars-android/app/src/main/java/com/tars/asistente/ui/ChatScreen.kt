@@ -76,7 +76,7 @@ fun ChatScreen(vm: ChatViewModel, onSettings: () -> Unit) {
                     )
                     Switch(
                         checked = vm.enabled,
-                        onCheckedChange = vm::setEnabled,
+                        onCheckedChange = vm::switchPower,
                         modifier = Modifier.padding(horizontal = 8.dp),
                     )
                     IconButton(onClick = vm::newConversation, enabled = vm.enabled) {
@@ -101,7 +101,7 @@ fun ChatScreen(vm: ChatViewModel, onSettings: () -> Unit) {
                 if (last >= 0) listState.animateScrollToItem(last)
             }
             if (!vm.enabled) {
-                SwitchedOff(Modifier.weight(1f)) { vm.setEnabled(true) }
+                SwitchedOff(Modifier.weight(1f)) { vm.switchPower(true) }
                 return@Column
             }
             if (vm.items.isEmpty() && !vm.thinking) {
