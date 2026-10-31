@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
@@ -112,6 +115,16 @@
 
         <receiver
             android:name=".messages.ReplyReceiver"
+            android:exported="false" />
+
+        <!-- Botón flotante y botón «Hablar» de la pantalla de bloqueo. Solo abre el micrófono al tocarlos. -->
+        <service
+            android:name=".quick.FloatingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <receiver
+            android:name=".quick.ListenReceiver"
             android:exported="false" />
     </application>
 </manifest>

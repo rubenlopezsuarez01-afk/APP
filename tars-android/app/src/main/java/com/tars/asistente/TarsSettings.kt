@@ -17,6 +17,29 @@ class TarsSettings(context: Context) {
         get() = (prefs.getString("extra_blocked", "") ?: "").split(',').map { it.trim() }.filter { it.isNotEmpty() }
         set(v) = prefs.edit().putString("extra_blocked", v.joinToString(",")).apply()
 
+    /** Botón flotante para hablar con TARS (solo escucha al tocarlo). */
+    var floatingButton: Boolean
+        get() = prefs.getBoolean("floating_button", false)
+        set(v) = prefs.edit().putBoolean("floating_button", v).apply()
+
+    /** Mostrar el botón flotante solo en la pantalla de inicio (si no, encima de todas las apps). */
+    var bubbleOnlyOnHome: Boolean
+        get() = prefs.getBoolean("bubble_only_home", true)
+        set(v) = prefs.edit().putBoolean("bubble_only_home", v).apply()
+
+    /** Botón "Hablar" en la notificación de TARS, visible en la pantalla de bloqueo. */
+    var lockScreenButton: Boolean
+        get() = prefs.getBoolean("lock_button", false)
+        set(v) = prefs.edit().putBoolean("lock_button", v).apply()
+
+    var bubbleX: Int
+        get() = prefs.getInt("bubble_x", -1)
+        set(v) = prefs.edit().putInt("bubble_x", v).apply()
+
+    var bubbleY: Int
+        get() = prefs.getInt("bubble_y", 400)
+        set(v) = prefs.edit().putInt("bubble_y", v).apply()
+
     var apiKey: String
         get() = prefs.getString("api_key", "") ?: ""
         set(v) = prefs.edit().putString("api_key", v.trim()).apply()

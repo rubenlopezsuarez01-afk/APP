@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tars.asistente.TarsApp
+import com.tars.asistente.quick.FloatingService
 import com.tars.asistente.voice.VoiceInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +55,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun switchPower(on: Boolean) {
         settings.enabled = on
         enabled = on
+        FloatingService.sync(app)
         if (!on) {
             voice.stop()
             app.speaker.stop()

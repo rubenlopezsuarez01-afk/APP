@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.tars.asistente.quick.FloatingService
 import kotlinx.coroutines.delay
 
 /**
@@ -25,7 +26,12 @@ class TarsAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Solo se usa para saber si estás en la pantalla de inicio (botón flotante de TARS).
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            event.packageName?.toString()?.let { FloatingService.instance?.onForegroundApp(it) }
+        }
+    }
     override fun onInterrupt() = Unit
 
     private fun root(): AccessibilityNodeInfo? = rootInActiveWindow

@@ -46,6 +46,14 @@ object ToolCatalog {
     /** Herramientas que actúan hacia terceros y requieren `confirmed=true`. */
     val NEEDS_CONFIRMATION = setOf("reply_message", "send_sms", "send_whatsapp", "make_call")
 
+    /**
+     * Lo único que TARS puede hacer con el teléfono bloqueado (botón de la pantalla de bloqueo):
+     * nada que lea o envíe datos personales, porque cualquiera con el móvil en la mano podría pedirlo.
+     */
+    val ALLOWED_WHEN_LOCKED = setOf(
+        "device_status", "flashlight", "set_volume", "media_control", "play_music", "set_alarm", "set_timer", "wait",
+    )
+
     val tools: List<Tool> = listOf(
         // --- Mensajes ---
         tool(

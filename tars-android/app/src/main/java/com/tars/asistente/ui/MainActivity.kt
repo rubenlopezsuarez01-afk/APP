@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.tars.asistente.quick.FloatingService
 
 class MainActivity : ComponentActivity() {
     private val vm: ChatViewModel by viewModels()
@@ -21,6 +22,7 @@ class MainActivity : ComponentActivity() {
 
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.refresh()
+        FloatingService.sync(this)
         if (listenWhenAllowed && hasMic()) vm.startListening()
         listenWhenAllowed = false
     }
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refresh()
+        FloatingService.sync(this)
     }
 
     /** Si nos abren como asistente (pulsación larga, mosaico o acceso directo), empezar a escuchar. */

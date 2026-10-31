@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.tars.asistente.access.TarsAccessibilityService
+import com.tars.asistente.quick.FloatingService
 
 val RUNTIME_PERMISSIONS: Array<String> = buildList {
     add(Manifest.permission.RECORD_AUDIO)
@@ -140,6 +141,55 @@ fun SettingsScreen(vm: ChatViewModel, onBack: () -> Unit, onRequestPermissions: 
                 valueRange = 0f..100f,
                 steps = 9,
             )
+
+            Section("Activar TARS rápido")
+            Text(
+                "TARS no está escuchando todo el rato: solo abre el micrófono cuando tocas uno de estos botones, " +
+                    "así casi no gasta batería.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val overlayOk = Settings.canDrawOverlays(context)
+            Toggle(
+                "Botón flotante",
+                "Un botón redondo con micrófono: tócalo para hablar, mantenlo pulsado para abrir TARS y " +
+                    "arrástralo para moverlo.",
+                s.floatingButton,
+            ) {
+                s.floatingButton = it
+                if (it && !Settings.canDrawOverlays(context)) {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                    )
+                }
+                FloatingService.sync(context)
+            }
+            if (s.floatingButton && !overlayOk) {
+                Status("Permiso «Mostrar sobre otras apps»", false, "Activar") {
+                    context.startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                    )
+                }
+            }
+            Toggle(
+                "Solo en la pantalla de inicio",
+                "Si lo desactivas, el botón sale también encima de las apps. Necesita el control de pantalla " +
+                    "(accesibilidad); sin él, el botón se ve siempre.",
+                s.bubbleOnlyOnHome,
+            ) {
+                s.bubbleOnlyOnHome = it
+                FloatingService.sync(context)
+            }
+            Toggle(
+                "Botón en la pantalla de bloqueo",
+                "Botón «Hablar» en la notificación de TARS. Con el móvil bloqueado TARS solo hace cosas sin datos " +
+                    "personales (alarmas, temporizador, linterna, volumen, música, preguntas); para mensajes, " +
+                    "llamadas o agenda te pedirá desbloquear.",
+                s.lockScreenButton,
+            ) {
+                s.lockScreenButton = it
+                FloatingService.sync(context)
+            }
 
             Section("Voz y mensajes")
             Toggle("Responder en voz alta", "Cuando le hablas, TARS contesta hablando.", s.speakReplies) { s.speakReplies = it }

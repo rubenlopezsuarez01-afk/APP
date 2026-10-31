@@ -47,6 +47,8 @@ data class BrainConfig(
     val memories: List<String> = emptyList(),
     val webSearch: Boolean = true,
     val requireConfirmation: Boolean = true,
+    /** El teléfono está bloqueado: solo herramientas inofensivas y sin datos personales. */
+    val locked: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_MODEL = "claude-opus-5-5"
@@ -64,6 +66,7 @@ class TarsBrain(
     private val mutex = Mutex()
     private val history = mutableListOf<MessageParam>()
     private var lastActivity = 0L
+    private var lastLocked = false
     private var client: AnthropicClient? = null
     private var clientKey: String? = null
 
@@ -85,6 +88,9 @@ class TarsBrain(
             val nowMs = System.currentTimeMillis()
             if (nowMs - lastActivity > CONVERSATION_TIMEOUT_MS || history.size > MAX_HISTORY) history.clear()
             lastActivity = nowMs
+            // Al bloquear el móvil se olvida la conversación, para no repetir mensajes leídos antes.
+            if (cfg.locked && !lastLocked) history.clear()
+            lastLocked = cfg.locked
 
             history += MessageParam.ofUser("[${contextLine()}]\n$userText")
             try {
@@ -136,6 +142,9 @@ class TarsBrain(
     }
 
     private suspend fun guardedExecute(cfg: BrainConfig, name: String, args: Map<String, Any?>): ToolResult {
+        if (cfg.locked && name !in ToolCatalog.ALLOWED_WHEN_LOCKED) {
+            return ToolResult(LOCKED_REFUSAL, isError = true)
+        }
         if (cfg.requireConfirmation && name in ToolCatalog.NEEDS_CONFIRMATION && args["confirmed"] != true) {
             return ToolResult(
                 "NO EJECUTADO: falta confirmación. Lee al usuario exactamente a quién y qué se va a enviar " +
@@ -217,6 +226,13 @@ class TarsBrain(
     }
 
     private fun personalBlock(cfg: BrainConfig) = buildString {
+        if (cfg.locked) {
+            append("EL TELÉFONO ESTÁ BLOQUEADO y quien habla puede no ser el dueño. Solo puedes: alarmas, ")
+            append("temporizadores, linterna, volumen, música, estado del teléfono, preguntas generales y búsquedas ")
+            append("web. Para mensajes, llamadas, agenda, contactos, apps o datos personales, pide que desbloquee ")
+            append("el teléfono. No reveles nada personal del usuario.")
+            return@buildString
+        }
         append("Nivel de humor: ${cfg.humor}% (0 = serio y escueto, 100 = muy bromista; ")
         append("las bromas nunca a costa de la claridad).\n")
         if (cfg.userName.isNotBlank()) append("El usuario se llama ${cfg.userName}.\n")
@@ -278,6 +294,9 @@ class TarsBrain(
         private const val MAX_HISTORY = 80
         private const val CONVERSATION_TIMEOUT_MS = 10 * 60 * 1000L
         private val FALLBACK_MODELS = setOf("claude-opus-5-5", "claude-sonnet-5-5")
+
+        const val LOCKED_REFUSAL =
+            "NO EJECUTADO: el teléfono está bloqueado. Pide al usuario que lo desbloquee y lo vuelva a pedir."
 
         const val OFF_MESSAGE = "TARS está apagado. Enciéndelo con el interruptor de arriba."
 

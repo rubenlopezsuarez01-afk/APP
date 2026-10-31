@@ -2,6 +2,8 @@ package com.tars.asistente
 
 import android.Manifest
 import android.app.Application
+import android.app.KeyguardManager
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -35,12 +37,26 @@ class TarsApp : Application() {
     override fun onCreate() {
         super.onCreate()
         settings = TarsSettings(this)
-        brain = TarsBrain(config = { settings.brainConfig() }, executor = PhoneTools(this, settings))
+        brain = TarsBrain(
+            config = { settings.brainConfig().copy(locked = isPhoneLocked()) },
+            executor = PhoneTools(this, settings),
+        )
         createChannels()
     }
 
+    fun isPhoneLocked(): Boolean = getSystemService(KeyguardManager::class.java).isKeyguardLocked
+
     private fun createChannels() {
         val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_BUTTON, "Botón de TARS", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Botón «Hablar» para activar TARS, también en la pantalla de bloqueo"
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+        )
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_SUGGESTIONS, "Respuestas sugeridas", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "TARS propone una respuesta a los mensajes que recibes"
@@ -107,5 +123,6 @@ class TarsApp : Application() {
 
     companion object {
         const val CHANNEL_SUGGESTIONS = "suggestions"
+        const val CHANNEL_BUTTON = "button"
     }
 }

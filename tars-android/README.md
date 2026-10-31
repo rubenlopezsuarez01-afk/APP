@@ -29,7 +29,9 @@ TARS es un asistente personal tipo Siri o Google Assistant, pero con Claude como
 
 ## 3. Usarla
 
-Formas de llamar a TARS:
+Formas de llamar a TARS (ninguna deja el micrófono escuchando: solo se abre cuando tocas):
+- **Botón flotante** (*Ajustes → Activar TARS rápido*): un botón redondo con micrófono en la pantalla de inicio (o encima de todas las apps, si quieres). Tócalo para hablar, mantenlo pulsado para abrir TARS y arrástralo para moverlo. La respuesta aparece en una tarjeta y te la dice en voz alta. Pide el permiso *Mostrar sobre otras apps*.
+- **Botón en la pantalla de bloqueo**: un botón «Hablar» en la notificación de TARS. Con el móvil bloqueado, TARS solo hace cosas sin datos personales (alarmas, temporizador, linterna, volumen, música, preguntas generales); para mensajes, llamadas, agenda o apps te pide desbloquear.
 - Mantener pulsado **Inicio** o el botón de encendido (si la elegiste como asistente).
 - Mosaico **TARS** en los *Ajustes rápidos* (desliza dos veces hacia abajo → lápiz → arrástralo).
 - Mantener pulsado el icono → **Hablar con TARS** (y arrastrarlo a la pantalla de inicio como acceso directo).
@@ -65,7 +67,9 @@ Ejemplos:
 
 ## Limitaciones
 
-- No hay palabra de activación ("Oye TARS") siempre escuchando: gastaría mucha batería. Se abre con Inicio, el mosaico o el acceso directo.
+- No hay palabra de activación ("Oye TARS") siempre escuchando, porque gastaría mucha batería: en su lugar están el botón flotante y el botón de la pantalla de bloqueo.
+- Tras reiniciar el móvil, abre TARS una vez para que vuelvan a aparecer los botones (Android no deja usar el micrófono desde segundo plano si la app no se ha abierto).
+- El botón flotante no se ve encima de la pantalla de bloqueo (Android no lo permite): ahí se usa el botón «Hablar» de la notificación.
 - Responder desde la notificación solo funciona mientras la notificación del chat existe. Si no, TARS envía el mensaje abriendo el chat.
 - Algunas apps (bancos, por ejemplo) bloquean la lectura de pantalla.
 
@@ -80,6 +84,7 @@ app/src/main/java/com/tars/asistente/
   messages/   Lector de notificaciones, almacén de chats y respuestas sugeridas.
   access/     Servicio de accesibilidad (leer pantalla, pulsar, escribir).
   voice/      Reconocimiento y síntesis de voz.
+  quick/      Botón flotante y botón «Hablar» de la pantalla de bloqueo.
   ui/         Pantallas de chat y ajustes.
 ```
 

@@ -42,8 +42,15 @@ class TarsBrainTest {
         }
     }
 
-    private fun brain(executor: ToolExecutor, enabled: Boolean = true) = TarsBrain(
-        config = { BrainConfig(apiKey = "test-key", enabled = enabled, memories = listOf("Mi mujer se llama Ana")) },
+    private fun brain(executor: ToolExecutor, enabled: Boolean = true, locked: () -> Boolean = { false }) = TarsBrain(
+        config = {
+            BrainConfig(
+                apiKey = "test-key",
+                enabled = enabled,
+                locked = locked(),
+                memories = listOf("Mi perro se llama Toby"),
+            )
+        },
         executor = executor,
         now = { LocalDateTime.of(2026, 10, 30, 18, 30) },
         clientFactory = { key ->
@@ -85,7 +92,7 @@ class TarsBrainTest {
         assertEquals(2, requests.size)
         assertTrue(requests[0].contains("\"fallbacks\":\"default\""))
         assertTrue(requests[0].contains("\"name\":\"read_screen\""))
-        assertTrue(requests[0].contains("Mi mujer se llama Ana"))
+        assertTrue(requests[0].contains("Mi perro se llama Toby"))
         assertTrue(requests[0].contains("viernes 30 de octubre de 2026, 18:30"))
         assertTrue(requests[1].contains("\"tool_use_id\":\"toolu_1\""))
         assertTrue(requests[1].contains("ok: flashlight"))
@@ -129,5 +136,35 @@ class TarsBrainTest {
         assertEquals(null, brain.draftReply("WhatsApp", "Ana", "Ana: hola"))
         assertEquals(0, server.requestCount)
         assertTrue(executor.calls.isEmpty())
+    }
+
+    @Test
+    fun lockedPhoneOnlyAllowsHarmlessTools() = runBlocking {
+        replies += toolUse("1", "list_messages", "{}")
+        replies += toolUse("2", "flashlight", """{"on":true}""")
+        replies += text("3", "Desbloquea el móvil para leer mensajes. Linterna encendida.")
+        enqueueReplies()
+        val executor = FakeExecutor()
+
+        brain(executor, locked = { true }).ask("lee mis mensajes y enciende la linterna")
+
+        assertEquals(listOf("flashlight"), executor.calls.map { it.first })
+        assertTrue(requests[1].contains("el teléfono está bloqueado"))
+        assertFalse(requests[0].contains("Mi perro se llama Toby"))
+    }
+
+    @Test
+    fun forgetsConversationWhenPhoneGetsLocked() = runBlocking {
+        replies += text("1", "Ana dice: llego a las 8.")
+        replies += text("2", "Vale.")
+        enqueueReplies()
+        var locked = false
+        val brain = brain(FakeExecutor(), locked = { locked })
+
+        brain.ask("¿qué dice Ana?")
+        locked = true
+        brain.ask("¿y qué más?")
+
+        assertFalse(requests[1].contains("llego a las 8"))
     }
 }
