@@ -365,6 +365,29 @@ La sección oficial y la conservación de cada ambiente las he asignado yo a par
 - **Tomate y otros sabores** (6): Otros sabores
 
 
+## 4. Cómo se colocan los productos dentro de cada ambiente
+
+**Mercadona no publica sus planogramas**, es decir, los planos que dicen dónde va cada producto en la estantería. Lo que se sabe sale de observaciones de terceros:
+
+**Distribución de la tienda.** Fuente: [TFG de la Universidad de Jaén, 2021](https://creapre.ujaen.es/bitstreams/88ec43f5-4b14-4952-baef-5d71c030de4f/download), basado en observar tiendas.
+- Los muebles están **en parrilla**: pasillos paralelos que se pueden recorrer en cualquier orden. En la tienda estudiada había 2 pasillos de entrada, 3 principales y 11 de acceso a las estanterías.
+- Los 2 pasillos de entrada pasan por **Fruta y verdura** y por **Listo para Comer**, las secciones que Mercadona quiere potenciar.
+- La gente tiende a recorrer la tienda en el sentido de las agujas del reloj. Por eso Mercadona pone **lo más buscado en las zonas de menos paso**: droguería y hogar, panadería, perfumería, carne, legumbres y lácteos.
+- La sección de Perfumería tiene **4 categorías**: maquillaje, cuidado del cabello, cuidado facial y corporal, y fitoterapia y parafarmacia. Coinciden con 4 de las categorías online.
+
+**Dentro de la estantería.**
+- Predomina la **presentación vertical**: cada familia de productos ocupa una franja de arriba abajo de la estantería. En algunas estanterías también se colocan en horizontal, una familia por balda.
+- **Altura de los ojos y de las manos**: los productos que más se venden y la marca propia (Hacendado). **Arriba**: productos de poca venta (en el ejemplo del cacao, el cacao puro). **Abajo**: formatos grandes y pesados (en el ejemplo, el formato familiar de Cola Cao y Nesquik).
+- Fuentes: el mismo TFG, [Grado en Marketing de la Universidad de Málaga](https://gradomarketing.uma.es/lineales-en-un-supermercado-donde-colocamos-los-productos-2/) y [Categoría MAC (2012)](https://categoriamac.blogspot.com/2012/02/colocacion-de-los-productos-en-los.html).
+
+**Otras observaciones.**
+- Los yogures están en la zona de lácteos refrigerados, junto a los zumos.
+- Lo que más se vende está cerca de la puerta del almacén, para reponerlo rápido.
+- Mercadona **no pone juntas las categorías complementarias**, para que el cliente recorra toda la tienda.
+- Fuente: [Categoría MAC (2012)](https://categoriamac.blogspot.com/2012/02/plano-mercadona-encontramos-la.html).
+
+**Qué supone para la app.** No hay datos para saber en qué estantería exacta está cada producto. Como cada familia ocupa su propia franja de estantería, **ordenar por ambiente y después por subcategoría** sigue bien el recorrido real. Cada tienda solo necesita su orden de ambientes y, si se quiere, el orden de las subcategorías dentro de cada ambiente.
+
 ## Casos a tener en cuenta
 
 - **"Carne congelada"** (dentro de *Carne*) y **"Pescado congelado"** (dentro de *Marisco y pescado*) suelen estar en el mueble de congelados, no en la carnicería ni en la pescadería.
