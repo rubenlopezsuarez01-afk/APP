@@ -3,6 +3,7 @@
   'use strict';
 
   const L = window.Logic;
+  const A = window.Aisles;
   const CATALOG = window.CATALOG;
   let state = Store.load();
   let view = 'week';
@@ -49,6 +50,48 @@
 
   function shopFor(name, fallback) {
     return state.ingredientShop[L.normalize(name)] || fallback || '';
+  }
+
+  // ---------- ambientes del súper (recorrido por la tienda) ----------
+  function route() {
+    return A.routeOf(state.settings.routes && state.settings.routes[A.STORE]);
+  }
+
+  /** Grupos de la lista con los artículos de Mercadona en el orden del recorrido. */
+  function routed(groups) {
+    return groups.map((g) => {
+      if (!A.isAisleStore(g.supermarket)) return g;
+      const sections = A.groupByRoute(g.items, route(), state.ingredientAisle);
+      return { ...g, sections, items: sections.flatMap((x) => x.items) };
+    });
+  }
+
+  function aisleLabel(sub) {
+    return sub ? A.subById.get(sub).name : 'Sin ambiente';
+  }
+
+  /** Elegir a mano la subcategoría de un ingrediente (se recuerda para la próxima vez). */
+  function pickAisle(name) {
+    const n = L.normalize(name);
+    const guessed = A.guess(name);
+    const current = A.subFor(name, state.ingredientAisle);
+    const manual = state.ingredientAisle[n] !== undefined;
+    const save = (value) => {
+      if (value === 'auto') delete state.ingredientAisle[n];
+      else state.ingredientAisle[n] = Number(value);
+      persist(); closeModal(); render();
+    };
+    const groups = route().map((id) => {
+      const a = A.ambById.get(id);
+      return h('optgroup', { label: a.name }, a.subs.map((sub) => h('option', { value: sub.id, selected: manual && sub.id === current }, sub.name)));
+    });
+    const select = h('select', { class: 'aisle-select', 'aria-label': 'Ambiente', onchange: (e) => save(e.target.value) },
+      h('option', { value: 'auto', selected: !manual }, guessed ? `Automático: ${A.ambById.get(A.subById.get(guessed).amb).name} · ${aisleLabel(guessed)}` : 'Automático: no lo sé'),
+      h('option', { value: String(A.NONE), selected: manual && current === null }, 'Sin ambiente (al final de la lista)'),
+      groups);
+    openModal(`¿Dónde está "${name}"?`, h('div', { class: 'aisle-picker' },
+      h('p', { class: 'muted small' }, 'Elige el ambiente y la sección de Mercadona. La app lo recordará para la próxima vez.'),
+      select));
   }
 
   function rememberShop(name, supermarket) {
@@ -546,28 +589,41 @@
           }
         }, `Quitar comprados (${done})`) : null));
 
-      for (const g of groups) {
+      const itemRow = (it, withAisle) => h('li', { class: it.checked ? 'checked' : '' },
+        h('label', {},
+          h('input', {
+            type: 'checkbox', checked: it.checked, onchange: (e) => {
+              if (e.target.checked) list.checked[it.id] = true; else delete list.checked[it.id];
+              persist(); render();
+            }
+          }),
+          h('span', { class: 'item-text' },
+            h('span', { class: 'item-name' }, it.name, it.qty ? h('span', { class: 'item-qty' }, ` · ${it.qty}`) : null),
+            h('span', { class: 'item-src' }, it.sources.map((s) => s.meal ? `${s.label}: ${s.meal}` : s.label).join(' · ')))),
+        withAisle ? h('button', {
+          class: 'aisle-chip' + (it.sub ? '' : ' none'), type: 'button', title: 'Cambiar ambiente',
+          onclick: () => pickAisle(it.name)
+        }, aisleLabel(it.sub)) : null,
+        it.extraIds ? h('button', {
+          class: 'icon-btn', 'aria-label': 'Eliminar', onclick: () => {
+            list.extras = list.extras.filter((x) => !it.extraIds.includes(x.id));
+            delete list.checked[it.id];
+            persist(); render();
+          }
+        }, '✕') : null);
+
+      for (const g of routed(groups)) {
         const pending = g.items.filter((i) => !i.checked).length;
         wrap.append(h('section', { class: 'card shop-group' },
           h('header', { class: 'shop-head' }, h('h3', {}, g.supermarket), h('span', { class: 'count' }, pending ? `${pending} pendientes` : '✔ completo')),
-          h('ul', { class: 'shop-items' }, g.items.map((it) => h('li', { class: it.checked ? 'checked' : '' },
-            h('label', {},
-              h('input', {
-                type: 'checkbox', checked: it.checked, onchange: (e) => {
-                  if (e.target.checked) list.checked[it.id] = true; else delete list.checked[it.id];
-                  persist(); render();
-                }
-              }),
-              h('span', { class: 'item-text' },
-                h('span', { class: 'item-name' }, it.name, it.qty ? h('span', { class: 'item-qty' }, ` · ${it.qty}`) : null),
-                h('span', { class: 'item-src' }, it.sources.map((s) => s.meal ? `${s.label}: ${s.meal}` : s.label).join(' · ')))),
-            it.extraIds ? h('button', {
-              class: 'icon-btn', 'aria-label': 'Eliminar', onclick: () => {
-                list.extras = list.extras.filter((x) => !it.extraIds.includes(x.id));
-                delete list.checked[it.id];
-                persist(); render();
-              }
-            }, '✕') : null)))));
+          g.sections
+            ? g.sections.map((sec) => h('div', { class: 'aisle' },
+              h('h4', { class: 'aisle-head' },
+                h('span', { class: 'aisle-dot', 'data-color': sec.ambiente ? sec.ambiente.color || '' : 'none' }),
+                sec.ambiente ? sec.ambiente.name : 'Sin ambiente',
+                h('span', { class: 'aisle-count' }, String(sec.items.filter((i) => !i.checked).length || '✔'))),
+              h('ul', { class: 'shop-items' }, sec.items.map((it) => itemRow(it, true)))))
+            : h('ul', { class: 'shop-items' }, g.items.map((it) => itemRow(it, false)))));
       }
     }
 
@@ -597,7 +653,7 @@
   }
 
   async function shareList() {
-    const text = 'Lista de la compra\n\n' + L.shoppingListText(generalList().groups);
+    const text = 'Lista de la compra\n\n' + L.shoppingListText(routed(generalList().groups));
     const inFrame = window.top !== window;
     try {
       if (navigator.share && !inFrame) { await navigator.share({ title: 'Lista de la compra', text }); return; }
@@ -725,6 +781,7 @@
       renderShareSection(),
       field('Comidas del día', 'Una por línea (ej. Desayuno, Comida, Cena).', s.meals, (v) => { if (v.length) s.meals = v; }, 3),
       field('Supermercados', 'Uno por línea. Aparecerán al lado de cada ingrediente.', s.supermarkets, (v) => { s.supermarkets = v; }),
+      renderRouteSection(),
       field('Siempre tengo en casa', 'Estos ingredientes se marcan como "Tengo" automáticamente y no van a la lista.', s.pantry, (v) => { s.pantry = v; }),
       field('No cuentan para repetir', 'Al proponer ideas se evitan platos con alimentos que ya comes esta semana. Estos básicos no cuentan.', s.staples, (v) => { s.staples = v; }, 6),
       h('section', { class: 'card setting' },
@@ -750,6 +807,48 @@
               state = Store.defaults(); persist(); render();
             }
           }, 'Borrar todo'))));
+  }
+
+  // ---------- recorrido por la tienda ----------
+  let routeOpen = false;
+  function renderRouteSection() {
+    const order = route();
+    const saveOrder = (ids) => {
+      state.settings.routes = { ...(state.settings.routes || {}), [A.STORE]: ids };
+      persist(); render();
+    };
+    const move = (i, d) => {
+      const ids = order.slice();
+      const j = i + d;
+      if (j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      saveOrder(ids);
+    };
+    const custom = !!(state.settings.routes && state.settings.routes[A.STORE]);
+    return h('section', { class: 'card setting route' },
+      h('h3', {}, 'Recorrido en Mercadona'),
+      h('p', { class: 'muted small' }, 'Ordena los 26 ambientes de Mercadona como estén en tu tienda, del primero al último que pasas. La lista de la compra de Mercadona saldrá en este orden.'),
+      h('button', { class: 'btn small', type: 'button', 'aria-expanded': String(routeOpen), onclick: () => { routeOpen = !routeOpen; render(); } },
+        routeOpen ? 'Ocultar recorrido' : `Ordenar ambientes${custom ? '' : ' (orden por defecto)'}`),
+      routeOpen ? h('ol', { class: 'route-list' }, order.map((id, i) => {
+        const a = A.ambById.get(id);
+        return h('li', {},
+          h('span', { class: 'route-pos' }, String(i + 1)),
+          h('span', { class: 'aisle-dot', 'data-color': a.color || '' }),
+          h('span', { class: 'route-name' }, a.name, h('span', { class: 'route-sec' }, a.section)),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Subir ${a.name}`, disabled: i === 0, onclick: () => move(i, -1) }, '↑'),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Bajar ${a.name}`, disabled: i === order.length - 1, onclick: () => move(i, 1) }, '↓'));
+      })) : null,
+      routeOpen && custom ? h('div', { class: 'row' },
+        h('button', {
+          class: 'btn small ghost', type: 'button', onclick: async () => {
+            if (!await ask('¿Volver al orden por defecto de los ambientes?', 'Restablecer')) return;
+            const routes = { ...(state.settings.routes || {}) };
+            delete routes[A.STORE];
+            state.settings.routes = routes;
+            persist(); render();
+          }
+        }, 'Restablecer orden')) : null);
   }
 
   // ---------- actualizaciones ----------

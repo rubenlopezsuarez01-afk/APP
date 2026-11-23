@@ -12,7 +12,7 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 const index = read('index.html');
 const body = index.slice(index.indexOf('<body>') + 6, index.indexOf('<script src')).trim();
 const fonts = index.match(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/)[0];
-const scripts = ['js/logic.js', 'js/catalog.js', 'js/store.js', 'js/app.js'].map(read);
+const scripts = ['js/logic.js', 'js/catalog.js', 'js/mercadona-data.js', 'js/aisles.js', 'js/store.js', 'js/app.js'].map(read);
 const safe = (js) => js.replace(/<\/script/gi, '<\\/script');
 
 const html = `<title>Planning de comidas</title>

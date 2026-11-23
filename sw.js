@@ -6,7 +6,7 @@ const CACHE = 'planificador-comidas-v' + self.APP_VERSION;
 const ASSETS = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png',
   'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  'js/version.js', 'js/logic.js', 'js/catalog.js', 'js/store.js', 'js/firebase-config.js', 'js/sync-firebase.js', 'js/app.js'
+  'js/version.js', 'js/logic.js', 'js/catalog.js', 'js/mercadona-data.js', 'js/aisles.js', 'js/store.js', 'js/firebase-config.js', 'js/sync-firebase.js', 'js/app.js'
 ];
 
 self.addEventListener('install', (e) => {

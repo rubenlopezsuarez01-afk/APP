@@ -20,12 +20,14 @@
         meals: ['Comida', 'Cena'],
         supermarkets: ['Mercadona', 'Lidl', 'Carrefour', 'Dia', 'Alcampo', 'Frutería'],
         pantry: ['Sal', 'Aceite de oliva', 'Pimienta', 'Ajo', 'Pimentón', 'Orégano', 'Vinagre'],
-        staples: STAPLES.slice()
+        staples: STAPLES.slice(),
+        routes: {} // orden de los ambientes por supermercado: { Mercadona: [ids] }
       },
       recipes: [],
       weeks: {},
       list: { extras: [], checked: {} }, // lista de la compra general
-      ingredientShop: {}
+      ingredientShop: {},
+      ingredientAisle: {} // subcategoría elegida a mano para cada ingrediente
     };
   }
 
@@ -43,6 +45,7 @@
         checked: (data.list && data.list.checked) || {}
       },
       ingredientShop: data.ingredientShop || {},
+      ingredientAisle: data.ingredientAisle || {},
       version: DATA_VERSION
     };
   }
@@ -126,14 +129,14 @@
   /**
    * Estado de la app -> { ruta: cuerpo }. Cada cosa que se suele tocar a la vez
    * desde dos móviles va en su propio documento, para que no se pisen:
-   *   meta/settings      ajustes y supermercado de cada ingrediente
+   *   meta/settings      ajustes, supermercado y ambiente de cada ingrediente
    *   weeks/<lunes>      { slots } comidas de la semana
    *   extras/<id>        artículo añadido a mano a la lista ({ from } = desde qué día sale)
    *   checks/<hash>      artículo tachado en la lista
    *   recipes/<id>       receta
    */
   function toDocs(state) {
-    const docs = { 'meta/settings': { settings: state.settings, ingredientShop: state.ingredientShop } };
+    const docs = { 'meta/settings': { settings: state.settings, ingredientShop: state.ingredientShop, ingredientAisle: state.ingredientAisle || {} } };
     for (const [k, w] of Object.entries(state.weeks)) {
       if (Object.keys(w.slots || {}).length) docs['weeks/' + k] = { slots: w.slots };
     }
@@ -151,7 +154,7 @@
   /** { ruta: cuerpo } -> estado de la app (entiende también el formato por semanas). */
   function fromDocs(docs) {
     const meta = docs['meta/settings'] || {};
-    const state = migrate({ settings: meta.settings, ingredientShop: meta.ingredientShop });
+    const state = migrate({ settings: meta.settings, ingredientShop: meta.ingredientShop, ingredientAisle: meta.ingredientAisle });
     const now = currentWeek();
     const clone = (o) => JSON.parse(JSON.stringify(o));
     for (const path of Object.keys(docs).sort()) {

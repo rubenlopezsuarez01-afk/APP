@@ -340,3 +340,37 @@ dialog.confirm[open] { display: block; }
 @media (prefers-reduced-motion: reduce) {
   #toast { transition: none; }
 }
+
+/* ---- Ambientes del súper (recorrido por la tienda) ---- */
+:root {
+  --aisle-verde: #3f9a52; --aisle-rojo: #c8443c; --aisle-azul: #2f72b8;
+  --aisle-amarillo: #e3b520; --aisle-gris: #a7aca9; --aisle-otro: #c9cdc3;
+}
+.aisle + .aisle { margin-top: 6px; }
+.aisle-head {
+  display: flex; align-items: center; gap: 8px; margin: 8px 0 0; padding: 6px 0 2px;
+  font-family: var(--body); font-size: .78rem; font-weight: 700; letter-spacing: .02em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border);
+}
+.aisle-count { margin-left: auto; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.aisle-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; background: var(--aisle-otro); }
+.aisle-dot[data-color="verde"] { background: var(--aisle-verde); }
+.aisle-dot[data-color="rojo"] { background: var(--aisle-rojo); }
+.aisle-dot[data-color="azul"] { background: var(--aisle-azul); }
+.aisle-dot[data-color="amarillo"] { background: var(--aisle-amarillo); }
+.aisle-dot[data-color="gris claro"] { background: var(--aisle-gris); }
+.aisle-dot[data-color="none"] { background: transparent; border: 1.5px dashed var(--muted); }
+.aisle-chip {
+  flex-shrink: 0; max-width: 42%; margin-left: 6px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--chip); color: var(--text);
+  font: inherit; font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.aisle-chip.none { font-style: italic; color: var(--muted); }
+.aisle-picker .aisle-select { width: 100%; }
+.route-list { list-style: none; margin: 10px 0 8px; padding: 0; }
+.route-list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); }
+.route-list li:first-child { border-top: 0; }
+.route-pos { width: 1.6em; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; }
+.route-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.route-sec { font-size: .72rem; color: var(--muted); }
+.route-list .icon-btn:disabled { opacity: .3; }

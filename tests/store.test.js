@@ -99,3 +99,13 @@ test('dos móviles tachando a la vez no se pisan', async () => {
   assert.deepStrictEqual(checks, ['Lidl::lenteja', 'Mercadona::papel de cocina', 'Sin asignar::pan de molde']);
   Store.disconnect();
 });
+
+test('el recorrido y los ambientes elegidos a mano viajan en meta/settings', () => {
+  const s = Store.defaults();
+  s.settings.routes = { Mercadona: [17, 1] };
+  s.ingredientAisle = { helado: 0, tomate: 29 };
+  const back = Store.fromDocs(Store.toDocs(s));
+  assert.deepStrictEqual(back.settings.routes, { Mercadona: [17, 1] });
+  assert.deepStrictEqual(back.ingredientAisle, { helado: 0, tomate: 29 });
+  assert.deepStrictEqual(Store.migrate({}).ingredientAisle, {});
+});
