@@ -388,6 +388,28 @@ La sección oficial y la conservación de cada ambiente las he asignado yo a par
 
 **Qué supone para la app.** No hay datos para saber en qué estantería exacta está cada producto. Como cada familia ocupa su propia franja de estantería, **ordenar por ambiente y después por subcategoría** sigue bien el recorrido real. Cada tienda solo necesita su orden de ambientes y, si se quiere, el orden de las subcategorías dentro de cada ambiente.
 
+## 5. Ajustes en la app (sentido común)
+
+La app parte de la clasificación online, pero la adapta a cómo se recorre la tienda. Están en `scripts/build-mercadona.js` y `js/aisles.js`.
+
+- **27 ambientes en vez de 26.** Se añade **Comidas preparadas**, que corresponde a la sección *Listo para Comer*. Incluye *Listo para Comer*, *Platos preparados calientes* y *Platos preparados fríos*. El antiguo "Pizzas y platos preparados" se queda solo con las **Pizzas**.
+- **Carne congelada** y **Pescado congelado** pasan al ambiente **Congelados**, que es donde están en la tienda.
+- **Ingredientes con sitio fijo**, porque los nombres de la web despistan:
+  - **Pescadería:** salmón (el fresco no se vende online), almejas, pulpo, atún fresco, boquerones, rape, pescadilla y tinta de calamar.
+  - **Fruta y verdura:** fresas, sandía y judías verdes.
+  - **Panadería:** el pan va al pan de horno.
+  - **Carne:** alitas de pollo y secreto ibérico.
+  - **Aperitivos:** frutos secos.
+  - **Comidas preparadas:** pollo asado, croquetas y tortilla de patatas.
+  - **Congelados:** varitas de merluza.
+- **Reglas:**
+  - Si el nombre dice *lata*, *bote* o *conserva*, va a Conservas.
+  - Si dice *fresco/a*, nunca va a Conservas ni a Congelados.
+  - Lo congelado solo va a Congelados si el nombre lo dice.
+  - Mascotas y Bebé solo se usan si el nombre lo pide, y *perro* o *gato* deciden el apartado.
+
+Cualquier ingrediente se puede cambiar a mano desde la lista de la compra, y la app lo recuerda.
+
 ## Casos a tener en cuenta
 
 - **"Carne congelada"** (dentro de *Carne*) y **"Pescado congelado"** (dentro de *Marisco y pescado*) suelen estar en el mueble de congelados, no en la carnicería ni en la pescadería.

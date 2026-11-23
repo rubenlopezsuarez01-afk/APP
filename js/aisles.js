@@ -26,13 +26,40 @@
 
   // Recorrido por defecto: frescos primero, lo seco en medio y el frío al final.
   // El usuario lo cambia en Ajustes según su tienda.
-  const DEFAULT_ROUTE = [1, 5, 3, 2, 4, 12, 13, 14, 15, 9, 7, 8, 18, 10, 19, 26, 20, 21, 22, 23, 24, 25, 6, 11, 16, 17];
+  // "Comidas preparadas" (Listo para Comer) suele estar junto a la entrada.
+  const DEFAULT_ROUTE = [1, 100, 5, 3, 2, 4, 12, 13, 14, 15, 9, 7, 8, 18, 10, 19, 26, 20, 21, 22, 23, 24, 25, 6, 11, 16, 17];
 
   const FRESH = new Set([1, 2, 3, 4, 5, 6]);
   const FROZEN = 17;
-  const READY = 16; // platos preparados: solo si no hay nada mejor
+  const CANNED = 14;
+  const READY = new Set([16, 100]); // pizzas y comidas preparadas: solo si no hay nada mejor
   // Solo cuentan si el ingrediente lo dice (si no, "ternera" acabaría en comida de perro).
   const ONLY_IF = { 25: /\b(perro|gato|mascota|pienso|arena)\b/, 24: /\b(bebe|infantil|papilla|panal|biberon|chupete|toallita)\b/ };
+  const SUB_IF = { 221: /\b(perro|pienso)\b/, 222: /\b(gato|arena)\b/ }; // perro o gato, según lo que diga
+
+  // Dónde lo buscaría cualquiera en la tienda cuando los nombres de la web
+  // despistan (p. ej. el salmón fresco no se vende online y caería en ahumados).
+  const FIXED_RAW = {
+    // pescadería
+    'salmon': 31, 'salmon fresco': 31, 'lomo de salmon': 31, 'atun fresco': 31, 'boqueron': 31, 'rape': 31,
+    'pescadilla': 31, 'tinta de calamar': 31, 'almeja': 32, 'pulpo': 32, 'sepia': 31, 'calamar': 31,
+    // fruta y verdura
+    'fresa': 27, 'fresón': 27, 'sandia': 27, 'judia verde': 29, 'judias verdes': 29, 'maiz': 127, 'maiz dulce': 127,
+    // panadería
+    'pan': 59, 'pan de pueblo': 59,
+    // carne y charcutería
+    'alita de pollo': 38, 'secreto iberico': 37, 'presa iberica': 37, 'jamon iberico': 50, 'queso de cabra': 53,
+    // despensa
+    'nuez': 133, 'nueces': 133, 'almendra': 133, 'avellana': 133, 'cacahuete': 133, 'lasaña': 120, 'placa de lasaña': 120,
+    'cuscus': 120, 'refresco de cola': 158, 'cola': 158,
+    // comidas preparadas
+    'pollo asado': 897, 'croqueta': 142, 'tortilla de patata': 142,
+    // congelados
+    'varita de merluza': 884, 'palito de merluza': 884,
+    // perfumería y parafarmacia
+    'tirita': 214, 'cuchilla de afeitar': 192, 'maquinilla de afeitar': 192, 'comida de gato': 222, 'comida para gato': 222
+  };
+  const FIXED = new Map(Object.entries(FIXED_RAW).map(([k, v]) => [normalize(k), v]));
 
   // Cómo se llama en la tienda lo que se suele escribir de otra forma.
   const SYNONYMS = [
@@ -46,9 +73,14 @@
   function weight(p, name, wantsFrozen) {
     const only = ONLY_IF[p.amb];
     if (only && !only.test(name)) return 0;
+    if (SUB_IF[p.sub] && !SUB_IF[p.sub].test(name)) return 0.1;
+    const fresh = /\bfresc[oa]\b/.test(name);
+    // "en lata", "bote", "conserva": conservas; "fresco": nunca conservas ni congelados.
+    if (p.amb === CANNED && /\b(lata|bote|conserva)\b/.test(name)) return 5;
+    if (fresh && (p.amb === CANNED || p.amb === FROZEN)) return 0.1;
     if (p.amb === FROZEN) return wantsFrozen ? 3 : 0.5;
     if (wantsFrozen) return 0.5;
-    if (p.amb === READY) return 0.5;
+    if (READY.has(p.amb)) return 0.5;
     return FRESH.has(p.amb) ? 3 : 1;
   }
 
@@ -89,6 +121,7 @@
     if (!n) return null;
     if (cache.has(n)) return cache.get(n);
     const key = n;
+    if (FIXED.has(n)) { cache.set(key, FIXED.get(n)); return FIXED.get(n); }
     for (const [from, to] of SYNONYMS) n = (' ' + n + ' ').replace(' ' + from + ' ', ' ' + to + ' ').trim();
     const words = n.split(' ');
     let found = null;

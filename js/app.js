@@ -811,6 +811,87 @@
 
   // ---------- recorrido por la tienda ----------
   let routeOpen = false;
+  let routeFocus = null; // ambiente cuyo asa recupera el foco tras mover con el teclado
+
+  /**
+   * Arrastrar para ordenar una lista (dedo o ratón) desde el asa ⠿ de cada fila.
+   * Mientras se arrastra, la página se desplaza sola cerca de los bordes.
+   * Al soltar llama a onDrop con los data-id en el nuevo orden.
+   */
+  function sortable(listEl, onDrop) {
+    let drag = null;
+    const rows = () => [...listEl.children];
+    // Las filas no cambian de sitio en la página hasta soltar (moverlas cortaría
+    // el gesto en algunos navegadores): mientras tanto solo se desplazan a la vista.
+    function layout() {
+      const pageY = drag.y + window.scrollY;
+      const dy = pageY - drag.startPageY;
+      const center = drag.centers[drag.from] + dy;
+      let to = 0;
+      drag.centers.forEach((c, k) => { if (k !== drag.from && center > c) to++; });
+      drag.to = to;
+      drag.items.forEach((li, k) => {
+        if (k === drag.from) { li.style.transform = `translateY(${dy}px)`; return; }
+        let shift = 0;
+        if (drag.from < to && k > drag.from && k <= to) shift = -drag.step;
+        if (to < drag.from && k >= to && k < drag.from) shift = drag.step;
+        li.style.transform = shift ? `translateY(${shift}px)` : '';
+      });
+    }
+
+    function autoScroll() {
+      if (!drag) return;
+      const top = 90; // bajo la cabecera
+      const bottom = window.innerHeight - 120; // por encima de la barra de pestañas
+      const dy = drag.y < top ? -Math.ceil((top - drag.y) / 6) : drag.y > bottom ? Math.ceil((drag.y - bottom) / 6) : 0;
+      if (dy) { window.scrollBy(0, dy); layout(); }
+      drag.raf = requestAnimationFrame(autoScroll);
+    }
+
+    function end(cancel) {
+      if (!drag) return;
+      const { from, to, items, raf } = drag;
+      drag = null;
+      cancelAnimationFrame(raf);
+      listEl.classList.remove('sorting');
+      for (const li of items) { li.style.transform = ''; li.classList.remove('dragging'); }
+      if (cancel || from === to) return;
+      const ids = items.map((li) => Number(li.dataset.id));
+      ids.splice(to, 0, ids.splice(from, 1)[0]);
+      onDrop(ids);
+    }
+
+    listEl.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('.drag-handle');
+      if (!handle || drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      e.preventDefault();
+      try { handle.setPointerCapture(e.pointerId); } catch (err) { /* sin captura también funciona */ }
+      const items = rows();
+      const li = handle.closest('li');
+      const rects = items.map((r) => r.getBoundingClientRect());
+      const from = items.indexOf(li);
+      const next = rects[from + 1] || rects[from - 1];
+      drag = {
+        items, from, to: from, y: e.clientY,
+        startPageY: e.clientY + window.scrollY,
+        centers: rects.map((r) => r.top + window.scrollY + r.height / 2),
+        step: next ? Math.abs(next.top - rects[from].top) : rects[from].height,
+        raf: 0
+      };
+      li.classList.add('dragging');
+      listEl.classList.add('sorting');
+      drag.raf = requestAnimationFrame(autoScroll);
+    });
+    listEl.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      e.preventDefault();
+      drag.y = e.clientY;
+      layout();
+    });
+    listEl.addEventListener('pointerup', () => end(false));
+    listEl.addEventListener('pointercancel', () => end(true));
+  }
+
   function renderRouteSection() {
     const order = route();
     const saveOrder = (ids) => {
@@ -822,23 +903,39 @@
       const j = i + d;
       if (j < 0 || j >= ids.length) return;
       [ids[i], ids[j]] = [ids[j], ids[i]];
+      routeFocus = ids[j];
       saveOrder(ids);
     };
     const custom = !!(state.settings.routes && state.settings.routes[A.STORE]);
+    const list = routeOpen ? h('ol', { class: 'route-list' }, order.map((id, i) => {
+      const a = A.ambById.get(id);
+      return h('li', { 'data-id': String(id) },
+        h('span', { class: 'route-pos' }, String(i + 1)),
+        h('span', { class: 'aisle-dot', 'data-color': a.color || '' }),
+        h('span', { class: 'route-name' }, a.name, h('span', { class: 'route-sec' }, a.section)),
+        h('button', {
+          class: 'drag-handle', type: 'button', id: `route-handle-${id}`,
+          'aria-label': `Mover ${a.name} (posición ${i + 1} de ${order.length}). Arrastra, o usa las flechas arriba y abajo.`,
+          onkeydown: (e) => {
+            if (e.key === 'ArrowUp') { e.preventDefault(); move(i, -1); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); move(i, 1); }
+          }
+        }, h('span', { 'aria-hidden': 'true' }, '⠿')));
+    })) : null;
+    if (list) {
+      sortable(list, saveOrder);
+      if (routeFocus) {
+        const id = routeFocus;
+        routeFocus = null;
+        requestAnimationFrame(() => { const el = document.getElementById(`route-handle-${id}`); if (el) el.focus(); });
+      }
+    }
     return h('section', { class: 'card setting route' },
       h('h3', {}, 'Recorrido en Mercadona'),
-      h('p', { class: 'muted small' }, 'Ordena los 26 ambientes de Mercadona como estén en tu tienda, del primero al último que pasas. La lista de la compra de Mercadona saldrá en este orden.'),
+      h('p', { class: 'muted small' }, `Ordena los ${order.length} ambientes de Mercadona como estén en tu tienda, del primero al último que pasas. Arrastra cada uno desde ⠿. La lista de la compra de Mercadona saldrá en este orden.`),
       h('button', { class: 'btn small', type: 'button', 'aria-expanded': String(routeOpen), onclick: () => { routeOpen = !routeOpen; render(); } },
         routeOpen ? 'Ocultar recorrido' : `Ordenar ambientes${custom ? '' : ' (orden por defecto)'}`),
-      routeOpen ? h('ol', { class: 'route-list' }, order.map((id, i) => {
-        const a = A.ambById.get(id);
-        return h('li', {},
-          h('span', { class: 'route-pos' }, String(i + 1)),
-          h('span', { class: 'aisle-dot', 'data-color': a.color || '' }),
-          h('span', { class: 'route-name' }, a.name, h('span', { class: 'route-sec' }, a.section)),
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Subir ${a.name}`, disabled: i === 0, onclick: () => move(i, -1) }, '↑'),
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Bajar ${a.name}`, disabled: i === order.length - 1, onclick: () => move(i, 1) }, '↓'));
-      })) : null,
+      list,
       routeOpen && custom ? h('div', { class: 'row' },
         h('button', {
           class: 'btn small ghost', type: 'button', onclick: async () => {

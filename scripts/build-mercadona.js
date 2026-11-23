@@ -21,6 +21,31 @@ const ambientes = src.ambientes.map((a) => ({
   subs: a.subcategorias.map((s) => ({ id: s.id, name: s.nombre, cons: s.conservacion }))
 }));
 
+// ---- Ajustes de sentido común sobre la clasificación online ----
+// La tienda online agrupa por tipo de producto; en la tienda física algunas
+// cosas están en otro sitio. Estos cambios ordenan los ambientes como se
+// recorre la tienda (ver docs/supermercados/mercadona.md, "Ajustes en la app").
+const MOVE = {
+  47: 17, // Carne congelada -> Congelados
+  34: 17 // Pescado congelado -> Congelados
+};
+const NEW_AMBIENTES = [
+  // Sección "Listo para Comer" + platos preparados refrigerados.
+  { id: 100, name: 'Comidas preparadas', section: 'Listo para Comer', color: null, cons: 'refrigerado', subs: [897, 140, 142] }
+];
+const RENAME = { 16: 'Pizzas' }; // se queda solo con las pizzas
+
+const allSubs = new Map();
+for (const a of ambientes) for (const s of a.subs) allSubs.set(s.id, s);
+const taken = new Set([...Object.keys(MOVE).map(Number), ...NEW_AMBIENTES.flatMap((a) => a.subs)]);
+for (const a of ambientes) {
+  a.subs = a.subs.filter((s) => !taken.has(s.id));
+  if (RENAME[a.id]) a.name = RENAME[a.id];
+}
+for (const [sub, amb] of Object.entries(MOVE)) ambientes.find((a) => a.id === amb).subs.push(allSubs.get(Number(sub)));
+for (const na of NEW_AMBIENTES) ambientes.push({ ...na, subs: na.subs.map((id) => allSubs.get(id)) });
+for (const a of ambientes) if (!a.subs.length) throw new Error('Ambiente vacío: ' + a.name);
+
 const products = {};
 for (const a of src.ambientes) {
   for (const s of a.subcategorias) {

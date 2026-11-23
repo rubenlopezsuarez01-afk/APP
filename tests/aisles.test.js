@@ -7,8 +7,8 @@ const where = (name) => {
   return sub ? `${A.ambById.get(A.subById.get(sub).amb).name} / ${A.subById.get(sub).name}` : null;
 };
 
-test('hay 26 ambientes y el recorrido por defecto los incluye todos una vez', () => {
-  assert.strictEqual(A.ambientes.length, 26);
+test('hay 27 ambientes (26 oficiales + comidas preparadas) y el recorrido por defecto los incluye todos una vez', () => {
+  assert.strictEqual(A.ambientes.length, 27);
   assert.deepStrictEqual([...A.DEFAULT_ROUTE].sort((a, b) => a - b), A.ambientes.map((a) => a.id).sort((a, b) => a - b));
 });
 
@@ -39,7 +39,7 @@ test('routeOf completa un recorrido guardado con los ambientes que falten', () =
   const r = A.routeOf([17, 1, 999]);
   assert.strictEqual(r[0], 17);
   assert.strictEqual(r[1], 1);
-  assert.strictEqual(r.length, 26);
+  assert.strictEqual(r.length, 27);
   assert.ok(!r.includes(999));
 });
 
@@ -70,4 +70,17 @@ test('isAisleStore reconoce Mercadona aunque cambien mayúsculas o tildes', () =
   assert.ok(A.isAisleStore('mercadona'));
   assert.ok(A.isAisleStore(' MERCADONA '));
   assert.ok(!A.isAisleStore('Lidl'));
+});
+
+test('ajustes de sentido común: pescado fresco, comidas preparadas y congelados', () => {
+  assert.strictEqual(where('Salmón'), 'Marisco y pescado / Pescado fresco');
+  assert.strictEqual(where('Almejas'), 'Marisco y pescado / Marisco');
+  assert.strictEqual(where('Pan'), 'Panadería y pastelería / Pan de horno');
+  assert.strictEqual(where('Sardinas en lata'), 'Conservas, caldos y cremas / Atún y otras conservas de pescado');
+  assert.strictEqual(where('Pollo asado'), 'Comidas preparadas / Listo para Comer');
+  assert.strictEqual(where('Comida de gato'), 'Mascotas / Gato');
+  // La carne y el pescado congelados están en el mueble de congelados.
+  assert.strictEqual(A.subById.get(47).amb, 17);
+  assert.strictEqual(A.subById.get(34).amb, 17);
+  assert.deepStrictEqual(A.ambById.get(100).subs.map((s) => s.name), ['Listo para Comer', 'Platos preparados calientes', 'Platos preparados fríos']);
 });
